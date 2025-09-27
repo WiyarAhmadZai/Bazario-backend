@@ -22,7 +22,7 @@ class SellerTest extends TestCase
 
         // Check if Spatie Permission package is available
         $spatieAvailable = class_exists('Spatie\Permission\Models\Role');
-        
+
         if ($spatieAvailable) {
             // Run the role seeder to set up roles and permissions
             $this->seed(\Database\Seeders\RoleSeeder::class);
@@ -35,7 +35,7 @@ class SellerTest extends TestCase
             'name' => 'Seller User',
             'password' => bcrypt('password'),
         ]);
-        
+
         // Assign role if Spatie package is available
         if ($spatieAvailable) {
             $this->seller->assignRole('seller');
@@ -86,7 +86,7 @@ class SellerTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJsonStructure([
                 'data' => [
@@ -116,7 +116,7 @@ class SellerTest extends TestCase
         // Accept either 201 (created) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [201, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 201) {
             $response->assertJson([
                 'message' => 'Product created successfully'
@@ -154,7 +154,7 @@ class SellerTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Product updated successfully'
@@ -187,7 +187,7 @@ class SellerTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Product deleted successfully'
@@ -205,7 +205,7 @@ class SellerTest extends TestCase
             'name' => 'Other Seller',
             'password' => bcrypt('password'),
         ]);
-        
+
         // Assign role if Spatie package is available
         if (class_exists('Spatie\Permission\Models\Role')) {
             $otherSeller->assignRole('seller');
@@ -247,7 +247,7 @@ class SellerTest extends TestCase
             'name' => 'Buyer User',
             'password' => bcrypt('password'),
         ]);
-        
+
         // Assign role if Spatie package is available
         if (class_exists('Spatie\Permission\Models\Role')) {
             $buyer->assignRole('buyer');
