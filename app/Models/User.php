@@ -39,6 +39,9 @@ class User extends Authenticatable
         'bank_account_info',
         'is_active',
         'last_login_at',
+        'verification_code',
+        'verification_code_expires_at',
+        'email_verified',
     ];
 
     /**
@@ -68,6 +71,8 @@ class User extends Authenticatable
             'bank_account_info' => 'array',
             'social_links' => 'array',
             'last_login_at' => 'datetime',
+            'verification_code_expires_at' => 'datetime',
+            'email_verified' => 'boolean',
         ];
     }
 
@@ -89,5 +94,57 @@ class User extends Authenticatable
     public function isCustomer()
     {
         return $this->role === 'customer' || $this->role === null;
+    }
+
+    /**
+     * Generate a verification code
+     *
+     * @return string
+     */
+    public function generateVerificationCode()
+    {
+        $code = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $this->update([
+            'verification_code' => $code,
+            'verification_code_expires_at' => now()->addMinutes(15), // 15 minutes expiry
+        ]);
+        return $code;
+    }
+
+    /**
+     * Verify the email verification code
+     *
+     * @param string $code
+     * @return bool
+     */
+    public function verifyEmailCode($code)
+    {
+        if (
+            $this->verification_code === $code &&
+            $this->verification_code_expires_at &&
+            $this->verification_code_expires_at->isFuture()
+        ) {
+
+            $this->update([
+                'email_verified' => true,
+                'verified' => true,
+                'verification_code' => null,
+                'verification_code_expires_at' => null,
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if verification code is expired
+     *
+     * @return bool
+     */
+    public function isVerificationCodeExpired()
+    {
+        return !$this->verification_code_expires_at || $this->verification_code_expires_at->isPast();
     }
 }
