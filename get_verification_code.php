@@ -20,9 +20,28 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit(1);
 }
 
-// Path to Laravel's artisan command
-$command = "cd " . __DIR__ . " && php artisan tinker --execute=\"\\\$user = App\\\Models\\\User::where('email', '{$email}')->first(); if (\\\$user) { echo 'Verification Code: ' . \\\$user->verification_code . PHP_EOL; echo 'Expires at: ' . \\\$user->verification_code_expires_at . PHP_EOL; } else { echo 'User not found\\n'; }\"";
+// Make API request to get verification code
+$url = 'http://localhost:8000/api/get-verification-code';
+$data = json_encode(['email' => $email]);
 
-echo "Executing: $command\n";
-echo "----------------------------------------\n";
-system($command);
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Content-Type: application/json',
+    'Accept: application/json',
+    'Content-Length: ' . strlen($data)
+]);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($httpCode >= 200 && $httpCode < 300) {
+    echo "Verification code retrieved successfully:\n";
+    echo $response . "\n";
+} else {
+    echo "Failed to retrieve verification code. HTTP Code: $httpCode\n";
+    echo $response . "\n";
+}
