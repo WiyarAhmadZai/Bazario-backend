@@ -10,7 +10,6 @@ use App\Models\OrderItem;
 use App\Models\CommissionSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Role;
 
 class PaymentTest extends TestCase
 {
@@ -24,8 +23,13 @@ class PaymentTest extends TestCase
     {
         parent::setUp();
 
-        // Run the role seeder to set up roles and permissions
-        $this->seed(\Database\Seeders\RoleSeeder::class);
+        // Check if Spatie Permission package is available
+        $spatieAvailable = class_exists('Spatie\Permission\Models\Role');
+        
+        if ($spatieAvailable) {
+            // Run the role seeder to set up roles and permissions
+            $this->seed(\Database\Seeders\RoleSeeder::class);
+        }
 
         // Create users
         $this->buyer = User::firstOrCreate([
@@ -44,9 +48,11 @@ class PaymentTest extends TestCase
             'wallet_balance' => 0.00,
         ]);
 
-        // Assign roles
-        $this->buyer->assignRole('buyer');
-        $this->seller->assignRole('seller');
+        // Assign roles if Spatie package is available
+        if ($spatieAvailable) {
+            $this->buyer->assignRole('buyer');
+            $this->seller->assignRole('seller');
+        }
 
         // Create commission setting
         CommissionSetting::firstOrCreate([], [

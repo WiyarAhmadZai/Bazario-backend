@@ -35,7 +35,7 @@ class AdminTest extends TestCase
             'name' => 'Admin User',
             'password' => bcrypt('password'),
         ]);
-        
+
         // Assign role if Spatie package is available
         if (class_exists('Spatie\Permission\Models\Role')) {
             $this->admin->assignRole('admin');
@@ -47,7 +47,7 @@ class AdminTest extends TestCase
             'name' => 'Seller User',
             'password' => bcrypt('password'),
         ]);
-        
+
         // Assign role if Spatie package is available
         if (class_exists('Spatie\Permission\Models\Role')) {
             $this->seller->assignRole('seller');
@@ -91,7 +91,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJsonStructure([
                 'data' => [
@@ -113,7 +113,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Product approved successfully'
@@ -135,7 +135,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Product rejected successfully'
@@ -157,7 +157,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Commission settings updated successfully'
@@ -179,7 +179,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'User updated successfully'
@@ -199,7 +199,7 @@ class AdminTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJsonStructure([
                 'data' => [
