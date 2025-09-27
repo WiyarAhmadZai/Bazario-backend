@@ -11,6 +11,7 @@ use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\NewsletterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +27,15 @@ use App\Http\Controllers\AdminController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+Route::post('/resend-verification-code', [AuthController::class, 'resendVerificationCode']);
+Route::post('/send-password-reset-code', [AuthController::class, 'sendPasswordResetCode']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// Newsletter routes (public)
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe']);
+Route::delete('/newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe']);
+Route::get('/newsletter/check-subscription', [NewsletterController::class, 'checkSubscription']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -34,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::put('/user/profile', [AuthController::class, 'updateProfile']);
     Route::post('/user/profile', [AuthController::class, 'updateProfile']); // For multipart file uploads
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     // Product routes
     Route::get('/products', [ProductController::class, 'index']);
@@ -111,5 +122,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Report routes
         Route::get('/admin/reports/sales', [AdminController::class, 'getSalesReport']);
         Route::get('/admin/reports/top-sellers', [AdminController::class, 'getTopSellers']);
+
+        // Newsletter admin routes
+        Route::get('/admin/newsletter/subscribers', [NewsletterController::class, 'getSubscribers']);
     });
 });
