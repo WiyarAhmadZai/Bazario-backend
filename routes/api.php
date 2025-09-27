@@ -31,6 +31,7 @@ Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-verification-code', [AuthController::class, 'resendVerificationCode']);
 Route::post('/send-password-reset-code', [AuthController::class, 'sendPasswordResetCode']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']); // For development only
 
 // Newsletter routes (public)
 Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe']);
