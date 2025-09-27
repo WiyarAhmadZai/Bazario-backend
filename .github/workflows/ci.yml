@@ -42,7 +42,7 @@ jobs:
           echo "MAIL_MAILER=array" >> .env
 
       - name: Install Dependencies
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+        run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Generate key
         run: php artisan key:generate
@@ -50,16 +50,14 @@ jobs:
       - name: Directory Permissions
         run: chmod -R 777 storage bootstrap/cache
 
+      - name: Discover Packages
+        run: php artisan package:discover
+
       - name: Run Migration and Seeding
         run: |
           php artisan config:clear
           php artisan migrate --force
-          php artisan db:seed --class=Database\\Seeders\\PermissionSeeder || echo "Permission seeder not found, continuing..."
-
-      - name: Discover and Cache Packages
-        run: |
-          php artisan package:discover
-          php artisan config:cache
+          php artisan db:seed --class=Database\\Seeders\\RoleSeeder
 
       - name: Execute tests
         run: |
