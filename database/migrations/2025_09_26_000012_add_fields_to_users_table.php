@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('phone')->nullable()->after('email');
+            $table->string('role')->nullable()->after('password');
+            $table->string('phone')->nullable()->after('role');
             $table->string('avatar')->nullable()->after('phone');
             $table->text('bio')->nullable()->after('avatar');
             $table->string('image')->nullable()->after('bio');
@@ -28,6 +29,11 @@ return new class extends Migration
             $table->json('bank_account_info')->nullable()->after('wallet_balance');
             $table->boolean('is_active')->default(true)->after('bank_account_info');
             $table->timestamp('last_login_at')->nullable()->after('is_active');
+
+            // Email verification fields
+            $table->string('verification_code', 6)->nullable()->after('last_login_at');
+            $table->timestamp('verification_code_expires_at')->nullable()->after('verification_code');
+            $table->boolean('email_verified')->default(false)->after('verification_code_expires_at');
         });
     }
 
@@ -38,6 +44,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn([
+                'role',
                 'phone',
                 'avatar',
                 'bio',
@@ -53,7 +60,10 @@ return new class extends Migration
                 'wallet_balance',
                 'bank_account_info',
                 'is_active',
-                'last_login_at'
+                'last_login_at',
+                'verification_code',
+                'verification_code_expires_at',
+                'email_verified'
             ]);
         });
     }
