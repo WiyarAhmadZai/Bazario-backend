@@ -8,6 +8,7 @@
 /.fleet
 /.idea
 /.nova
+/.zed
 /.phpunit.cache
 /.vscode
 /.zed
@@ -29,7 +30,6 @@ README.md
 
 # Testing files
 phpunit.xml
-/tests
 
 # Documentation
 /docs
