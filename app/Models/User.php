@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
 {
@@ -108,6 +109,12 @@ class User extends Authenticatable
             'verification_code' => $code,
             'verification_code_expires_at' => now()->addMinutes(15), // 15 minutes expiry
         ]);
+
+        // Log the verification code for development purposes
+        if (app()->environment('local', 'development')) {
+            Log::info('Verification code generated for user: ' . $this->email . ' - Code: ' . $code);
+        }
+
         return $code;
     }
 
@@ -146,5 +153,20 @@ class User extends Authenticatable
     public function isVerificationCodeExpired()
     {
         return !$this->verification_code_expires_at || $this->verification_code_expires_at->isPast();
+    }
+
+    /**
+     * Get verification code for development/testing purposes
+     * ONLY for non-production environments
+     *
+     * @return string|null
+     */
+    public function getVerificationCodeForTesting()
+    {
+        if (app()->environment('production')) {
+            return null;
+        }
+
+        return $this->verification_code;
     }
 }

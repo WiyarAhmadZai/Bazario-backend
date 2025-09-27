@@ -31,7 +31,9 @@ Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-verification-code', [AuthController::class, 'resendVerificationCode']);
 Route::post('/send-password-reset-code', [AuthController::class, 'sendPasswordResetCode']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']); // For development only
+
+// Development only route for getting verification codes
+Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']);
 
 // Newsletter routes (public)
 Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe']);
@@ -60,7 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cart', [CartController::class, 'store']);
     Route::put('/cart/{id}', [CartController::class, 'update']);
     Route::delete('/cart/{id}', [CartController::class, 'destroy']);
-    Route::delete('/cart', [CartController::class, 'clear']);
 
     // Order routes
     Route::get('/orders', [OrderController::class, 'index']);
@@ -73,58 +74,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/wishlist/{id}', [WishlistController::class, 'destroy']);
 
     // Review routes
-    Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
-    Route::post('/products/{productId}/reviews', [ReviewController::class, 'store']);
+    Route::get('/reviews', [ReviewController::class, 'index']);
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
 
     // Payment routes
-    Route::post('/checkout', [OrderController::class, 'checkout']);
-    Route::post('/payments/process/{orderId}', [PaymentController::class, 'processPayment']);
-    Route::post('/payments/webhook/{gateway}', [PaymentController::class, 'handleWebhook']);
-    Route::post('/payments/confirm-bank-transfer/{orderId}', [PaymentController::class, 'confirmBankTransfer']);
-
-    // Seller routes
-    Route::get('/seller/products', [ProductController::class, 'sellerProducts']);
-    Route::post('/seller/products', [ProductController::class, 'store']);
-    Route::put('/seller/products/{id}', [ProductController::class, 'update']);
-    Route::delete('/seller/products/{id}', [ProductController::class, 'destroy']);
+    Route::post('/payment/process', [PaymentController::class, 'process']);
+    Route::get('/payment/status/{id}', [PaymentController::class, 'status']);
 
     // Admin routes
     Route::middleware('admin')->group(function () {
-        // Product admin routes
-        Route::get('/admin/products/pending', [AdminController::class, 'getPendingProducts']);
-        Route::put('/admin/products/{id}/approve', [AdminController::class, 'approveProduct']);
-        Route::put('/admin/products/{id}/reject', [AdminController::class, 'rejectProduct']);
-
-        // Category admin routes
-        Route::post('/categories', [CategoryController::class, 'store']);
-        Route::put('/categories/{id}', [CategoryController::class, 'update']);
-        Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
-
-        // Order admin routes
-        Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
-
-        // Review admin routes
-        Route::put('/reviews/{id}', [ReviewController::class, 'update']);
-        Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
-
-        // Payment admin routes
-        Route::get('/admin/bank-transfers/pending', [AdminController::class, 'getPendingBankTransfers']);
-        Route::put('/admin/bank-transfers/{id}/approve', [AdminController::class, 'approveBankTransfer']);
-        Route::put('/admin/bank-transfers/{id}/reject', [AdminController::class, 'rejectBankTransfer']);
-
-        // Commission admin routes
-        Route::get('/admin/commission', [AdminController::class, 'getCommissionSettings']);
-        Route::put('/admin/commission', [AdminController::class, 'updateCommissionSettings']);
-
-        // User admin routes
-        Route::get('/admin/users', [AdminController::class, 'getUsers']);
-        Route::put('/admin/users/{id}', [AdminController::class, 'manageUser']);
-
-        // Report routes
-        Route::get('/admin/reports/sales', [AdminController::class, 'getSalesReport']);
-        Route::get('/admin/reports/top-sellers', [AdminController::class, 'getTopSellers']);
-
-        // Newsletter admin routes
-        Route::get('/admin/newsletter/subscribers', [NewsletterController::class, 'getSubscribers']);
+        Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+        Route::get('/admin/users', [AdminController::class, 'users']);
+        Route::get('/admin/products', [AdminController::class, 'products']);
+        Route::post('/admin/products', [AdminController::class, 'createProduct']);
+        Route::put('/admin/products/{id}', [AdminController::class, 'updateProduct']);
+        Route::delete('/admin/products/{id}', [AdminController::class, 'deleteProduct']);
     });
 });

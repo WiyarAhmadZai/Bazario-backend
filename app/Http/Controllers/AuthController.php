@@ -32,13 +32,7 @@ class AuthController extends Controller
             $verificationCode = $existingUser->generateVerificationCode();
 
             // Send verification email
-            try {
-                Mail::to($existingUser->email)->send(new VerificationCodeMail($existingUser, $verificationCode, 'registration'));
-                $emailSent = true;
-            } catch (\Exception $e) {
-                Log::warning('Failed to send verification email: ' . $e->getMessage());
-                $emailSent = false;
-            }
+            $emailSent = $this->sendVerificationEmail($existingUser, $verificationCode);
 
             return response()->json([
                 'message' => 'Account already exists but email not verified. Please check your email for verification code.',
@@ -82,13 +76,7 @@ class AuthController extends Controller
             $verificationCode = $user->generateVerificationCode();
 
             // Send verification email
-            try {
-                Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
-                $emailSent = true;
-            } catch (\Exception $e) {
-                Log::warning('Failed to send verification email: ' . $e->getMessage());
-                $emailSent = false;
-            }
+            $emailSent = $this->sendVerificationEmail($user, $verificationCode);
 
             return response()->json([
                 'message' => $emailSent
@@ -179,13 +167,7 @@ class AuthController extends Controller
             $verificationCode = $user->generateVerificationCode();
 
             // Send verification email
-            try {
-                Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
-                $emailSent = true;
-            } catch (\Exception $e) {
-                Log::warning('Failed to resend verification email: ' . $e->getMessage());
-                $emailSent = false;
-            }
+            $emailSent = $this->sendVerificationEmail($user, $verificationCode);
 
             return response()->json([
                 'message' => $emailSent
@@ -230,13 +212,7 @@ class AuthController extends Controller
                 $verificationCode = $user->generateVerificationCode();
 
                 // Send verification email
-                try {
-                    Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
-                    $emailSent = true;
-                } catch (\Exception $e) {
-                    Log::warning('Failed to send verification email: ' . $e->getMessage());
-                    $emailSent = false;
-                }
+                $emailSent = $this->sendVerificationEmail($user, $verificationCode);
 
                 return response()->json([
                     'message' => 'Please verify your email address before logging in.',
@@ -476,13 +452,7 @@ class AuthController extends Controller
             $verificationCode = $user->generateVerificationCode();
 
             // Send password reset email
-            try {
-                Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'password_reset'));
-                $emailSent = true;
-            } catch (\Exception $e) {
-                Log::warning('Failed to send password reset email: ' . $e->getMessage());
-                $emailSent = false;
-            }
+            $emailSent = $this->sendVerificationEmail($user, $verificationCode, 'password_reset');
 
             return response()->json([
                 'message' => $emailSent
@@ -552,44 +522,6 @@ class AuthController extends Controller
     }
 
     /**
-     * Get verification code for testing (only for development)
-     */
-    public function getVerificationCode(Request $request)
-    {
-        // Only allow this in local development environment
-        if (app()->environment('production')) {
-            return response()->json(['message' => 'Not available in production'], 403);
-        }
-
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        try {
-            $user = User::where('email', $request->email)->first();
-
-            if (!$user) {
-                return response()->json(['message' => 'User not found'], 404);
-            }
-
-            if (!$user->verification_code) {
-                return response()->json(['message' => 'No verification code found for this user'], 404);
-            }
-
-            return response()->json([
-                'verification_code' => $user->verification_code,
-                'expires_at' => $user->verification_code_expires_at,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Get verification code failed:', ['error' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Failed to retrieve verification code',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
      * Change password (for authenticated users)
      */
     public function changePassword(Request $request)
@@ -623,6 +555,71 @@ class AuthController extends Controller
                 'message' => 'Failed to change password',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Get verification code for testing (only for development)
+     */
+    public function getVerificationCode(Request $request)
+    {
+        // Only allow this in local development environment
+        if (!app()->environment('local', 'development')) {
+            return response()->json(['message' => 'Not available in production'], 403);
+        }
+
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        try {
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json(['message' => 'User not found'], 404);
+            }
+
+            if (!$user->verification_code) {
+                return response()->json(['message' => 'No verification code found for this user'], 404);
+            }
+
+            return response()->json([
+                'verification_code' => $user->getVerificationCodeForTesting(),
+                'expires_at' => $user->verification_code_expires_at,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get verification code failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to retrieve verification code',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send verification email with fallback mechanisms
+     * 
+     * @param User $user
+     * @param string $verificationCode
+     * @param string $type 'registration' or 'password_reset'
+     * @return bool
+     */
+    private function sendVerificationEmail($user, $verificationCode, $type = 'registration')
+    {
+        try {
+            // Try to send the email
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, $type));
+            return true;
+        } catch (\Exception $e) {
+            // Log the error
+            Log::warning('Failed to send verification email: ' . $e->getMessage());
+
+            // In development environment, log the verification code
+            if (app()->environment('local', 'development')) {
+                Log::info('Verification code for ' . $user->email . ': ' . $verificationCode);
+            }
+
+            return false;
         }
     }
 }
