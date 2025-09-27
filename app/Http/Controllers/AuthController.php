@@ -69,6 +69,92 @@ class AuthController extends Controller
     }
 
     /**
+     * Verify email code
+     */
+    public function verifyEmail(Request $request)
+    {
+        // Validate the request
+        $request->validate([
+            'email' => 'required|email',
+            'verification_code' => 'required|string|size:6',
+        ]);
+
+        try {
+            // Find user by email
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Verify the code
+            if ($user->verifyEmailCode($request->verification_code)) {
+                return response()->json([
+                    'message' => 'Email verified successfully! You can now log in.',
+                    'email_verified' => true
+                ], 200);
+            } else {
+                return response()->json([
+                    'message' => 'Invalid or expired verification code'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Email verification failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Email verification failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Resend verification code
+     */
+    public function resendVerificationCode(Request $request)
+    {
+        // Validate the request
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        try {
+            // Find user by email
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Check if user is already verified
+            if ($user->email_verified) {
+                return response()->json([
+                    'message' => 'Email is already verified'
+                ], 400);
+            }
+
+            // Generate new verification code
+            $verificationCode = $user->generateVerificationCode();
+
+            // Send verification email
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
+
+            return response()->json([
+                'message' => 'Verification code resent successfully! Please check your email.',
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Resend verification code failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to resend verification code',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Login user
      */
     public function login(Request $request)
@@ -308,105 +394,6 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Failed to update profile',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Verify email with verification code
-     */
-    public function verifyEmail(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'verification_code' => 'required|string|size:6',
-        ]);
-
-        try {
-            $user = User::findOrFail($request->user_id);
-
-            // Check if already verified
-            if ($user->email_verified) {
-                return response()->json([
-                    'message' => 'Email is already verified'
-                ], 400);
-            }
-
-            // Verify the code
-            if ($user->verifyEmailCode($request->verification_code)) {
-                // Create a token for the user
-                $token = $user->createToken('auth_token')->plainTextToken;
-
-                return response()->json([
-                    'message' => 'Email verified successfully! You are now logged in.',
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'phone' => $user->phone,
-                        'bio' => $user->bio,
-                        'image' => $user->image,
-                        'date_of_birth' => $user->date_of_birth,
-                        'address' => $user->address,
-                        'city' => $user->city,
-                        'country' => $user->country,
-                        'gender' => $user->gender,
-                        'profession' => $user->profession,
-                        'role' => $user->role,
-                        'verified' => $user->verified,
-                        'wallet_balance' => $user->wallet_balance,
-                        'is_active' => $user->is_active,
-                        'email_verified' => $user->email_verified,
-                    ],
-                    'token' => $token
-                ]);
-            } else {
-                return response()->json([
-                    'message' => 'Invalid or expired verification code'
-                ], 400);
-            }
-        } catch (\Exception $e) {
-            Log::error('Email verification failed:', ['error' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Email verification failed',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Resend verification code
-     */
-    public function resendVerificationCode(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        try {
-            $user = User::where('email', $request->email)->first();
-
-            // Check if already verified
-            if ($user->email_verified) {
-                return response()->json([
-                    'message' => 'Email is already verified'
-                ], 400);
-            }
-
-            // Generate new verification code
-            $verificationCode = $user->generateVerificationCode();
-
-            // Send verification email
-            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
-
-            return response()->json([
-                'message' => 'Verification code sent successfully!'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Resend verification code failed:', ['error' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Failed to send verification code',
                 'error' => $e->getMessage()
             ], 500);
         }
