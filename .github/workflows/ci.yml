@@ -50,6 +50,9 @@ jobs:
       - name: Directory Permissions
         run: chmod -R 777 storage bootstrap/cache
 
+      - name: Publish Spatie Permission Config
+        run: php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
       - name: Discover Packages
         run: php artisan package:discover
 
