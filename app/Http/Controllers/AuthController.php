@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use App\Models\User;
+use App\Mail\VerificationCodeMail;
 
 class AuthController extends Controller
 {
@@ -18,48 +20,37 @@ class AuthController extends Controller
         // Validate the request
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
         try {
-            // Create the user
+            // Create the user (but don't verify email yet)
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role' => 'customer',
                 'verified' => false,
+                'email_verified' => false,
                 'wallet_balance' => 0.00,
                 'is_active' => true,
             ]);
 
-            // Create a token for the user
-            $token = $user->createToken('auth_token')->plainTextToken;
+            // Generate verification code
+            $verificationCode = $user->generateVerificationCode();
+
+            // Send verification email
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
 
             return response()->json([
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'bio' => $user->bio,
-                    'image' => $user->image, // Will be null for new users
-                    'date_of_birth' => $user->date_of_birth,
-                    'address' => $user->address,
-                    'city' => $user->city,
-                    'country' => $user->country,
-                    'gender' => $user->gender,
-                    'profession' => $user->profession,
-                    'role' => $user->role,
-                    'verified' => $user->verified,
-                    'wallet_balance' => $user->wallet_balance,
-                    'is_active' => $user->is_active,
-                ],
-                'token' => $token,
-                'message' => 'User registered successfully'
+                'message' => 'Registration successful! Please check your email for the verification code.',
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'requires_verification' => true
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Registration failed:', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Registration failed',
                 'error' => $e->getMessage()
@@ -89,6 +80,16 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            // Check if email is verified
+            if (!$user->email_verified) {
+                return response()->json([
+                    'message' => 'Please verify your email address before logging in.',
+                    'requires_verification' => true,
+                    'user_id' => $user->id,
+                    'email' => $user->email
+                ], 403);
+            }
+
             // Update last login
             $user->update(['last_login_at' => now()]);
 
@@ -113,6 +114,7 @@ class AuthController extends Controller
                     'verified' => $user->verified,
                     'wallet_balance' => $user->wallet_balance,
                     'is_active' => $user->is_active,
+                    'email_verified' => $user->email_verified,
                 ],
                 'token' => $token,
                 'message' => 'User logged in successfully'
@@ -296,6 +298,218 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Failed to update profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify email with verification code
+     */
+    public function verifyEmail(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'verification_code' => 'required|string|size:6',
+        ]);
+
+        try {
+            $user = User::findOrFail($request->user_id);
+
+            // Check if already verified
+            if ($user->email_verified) {
+                return response()->json([
+                    'message' => 'Email is already verified'
+                ], 400);
+            }
+
+            // Verify the code
+            if ($user->verifyEmailCode($request->verification_code)) {
+                // Create a token for the user
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'message' => 'Email verified successfully! You are now logged in.',
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'phone' => $user->phone,
+                        'bio' => $user->bio,
+                        'image' => $user->image,
+                        'date_of_birth' => $user->date_of_birth,
+                        'address' => $user->address,
+                        'city' => $user->city,
+                        'country' => $user->country,
+                        'gender' => $user->gender,
+                        'profession' => $user->profession,
+                        'role' => $user->role,
+                        'verified' => $user->verified,
+                        'wallet_balance' => $user->wallet_balance,
+                        'is_active' => $user->is_active,
+                        'email_verified' => $user->email_verified,
+                    ],
+                    'token' => $token
+                ]);
+            } else {
+                return response()->json([
+                    'message' => 'Invalid or expired verification code'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Email verification failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Email verification failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Resend verification code
+     */
+    public function resendVerificationCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        try {
+            $user = User::where('email', $request->email)->first();
+
+            // Check if already verified
+            if ($user->email_verified) {
+                return response()->json([
+                    'message' => 'Email is already verified'
+                ], 400);
+            }
+
+            // Generate new verification code
+            $verificationCode = $user->generateVerificationCode();
+
+            // Send verification email
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'registration'));
+
+            return response()->json([
+                'message' => 'Verification code sent successfully!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Resend verification code failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to send verification code',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send password reset code
+     */
+    public function sendPasswordResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        try {
+            $user = User::where('email', $request->email)->first();
+
+            // Generate verification code for password reset
+            $verificationCode = $user->generateVerificationCode();
+
+            // Send password reset email
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, 'password_reset'));
+
+            return response()->json([
+                'message' => 'Password reset code sent to your email!',
+                'user_id' => $user->id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Send password reset code failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to send password reset code',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset password with verification code
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'verification_code' => 'required|string|size:6',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+            $user = User::findOrFail($request->user_id);
+
+            // Verify the code (without marking email as verified for password reset)
+            if (
+                $user->verification_code === $request->verification_code &&
+                $user->verification_code_expires_at &&
+                $user->verification_code_expires_at->isFuture()
+            ) {
+
+                // Update password and clear verification code
+                $user->update([
+                    'password' => Hash::make($request->password),
+                    'verification_code' => null,
+                    'verification_code_expires_at' => null,
+                ]);
+
+                return response()->json([
+                    'message' => 'Password reset successfully! You can now login with your new password.'
+                ]);
+            } else {
+                return response()->json([
+                    'message' => 'Invalid or expired verification code'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Password reset failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Password reset failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Change password (for authenticated users)
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+            $user = $request->user();
+
+            // Check if current password is correct
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'message' => 'Current password is incorrect'
+                ], 400);
+            }
+
+            // Update password
+            $user->update([
+                'password' => Hash::make($request->password),
+            ]);
+
+            return response()->json([
+                'message' => 'Password changed successfully!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Change password failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to change password',
                 'error' => $e->getMessage()
             ], 500);
         }
