@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Models\User;
 use App\Mail\VerificationCodeMail;
+use App\Services\EmailValidationService;
 
 class AuthController extends Controller
 {
@@ -23,6 +24,15 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
+
+        // Validate email with comprehensive checks
+        $emailValidation = EmailValidationService::validateEmail($request->email);
+        if (!$emailValidation['valid']) {
+            return response()->json([
+                'message' => $emailValidation['message'],
+                'error_type' => $emailValidation['error_type']
+            ], 422);
+        }
 
         try {
             // Create the user (but don't verify email yet)
