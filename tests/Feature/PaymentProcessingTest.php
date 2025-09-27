@@ -27,7 +27,7 @@ class PaymentProcessingTest extends TestCase
 
         // Check if Spatie Permission package is available
         $spatieAvailable = class_exists('Spatie\Permission\Models\Role');
-        
+
         if ($spatieAvailable) {
             // Run the role seeder to set up roles and permissions
             $this->seed(\Database\Seeders\RoleSeeder::class);
@@ -45,7 +45,7 @@ class PaymentProcessingTest extends TestCase
             'name' => 'Test Seller',
             'password' => bcrypt('password'),
         ]);
-        
+
         if ($spatieAvailable) {
             $this->seller->assignRole('seller');
         }
@@ -56,7 +56,7 @@ class PaymentProcessingTest extends TestCase
             'name' => 'Test Buyer',
             'password' => bcrypt('password'),
         ]);
-        
+
         if ($spatieAvailable) {
             $this->buyer->assignRole('buyer');
         }
@@ -109,7 +109,7 @@ class PaymentProcessingTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Payment processed successfully',
@@ -132,7 +132,7 @@ class PaymentProcessingTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Bank transfer initiated. Please upload receipt for verification.',
@@ -160,7 +160,7 @@ class PaymentProcessingTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Receipt uploaded successfully. Awaiting admin verification.',
@@ -181,7 +181,7 @@ class PaymentProcessingTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Webhook processed successfully',
@@ -219,7 +219,7 @@ class PaymentProcessingTest extends TestCase
         // Accept either 200 (success) or 500 (server error due to missing implementation)
         $statusCode = $response->getStatusCode();
         $this->assertTrue(in_array($statusCode, [200, 500]), "Unexpected status code: $statusCode");
-        
+
         if ($statusCode === 200) {
             $response->assertJson([
                 'message' => 'Payment processed successfully',
