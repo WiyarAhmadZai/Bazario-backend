@@ -55,7 +55,6 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Registration successful! Please check your email for the verification code.',
-                'user_id' => $user->id,
                 'email' => $user->email,
                 'requires_verification' => true
             ], 201);
@@ -181,7 +180,6 @@ class AuthController extends Controller
                 return response()->json([
                     'message' => 'Please verify your email address before logging in.',
                     'requires_verification' => true,
-                    'user_id' => $user->id,
                     'email' => $user->email
                 ], 403);
             }
