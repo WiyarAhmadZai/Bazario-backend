@@ -17,6 +17,40 @@ use Illuminate\Support\Facades\Storage;
 class AdminController extends Controller
 {
     /**
+     * Admin dashboard data
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function dashboard()
+    {
+        $totalProducts = Product::count();
+        $totalOrders = Order::count();
+        $totalUsers = User::count();
+        $totalRevenue = PaymentTransaction::where('status', 'completed')->sum('amount');
+        
+        // Get recent orders
+        $recentOrders = Order::with('user')->orderBy('created_at', 'desc')->limit(5)->get();
+        
+        // Get pending orders
+        $pendingOrders = Order::where('status', 'pending')->count();
+        
+        // Get products by status
+        $productsByStatus = Product::selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->get();
+        
+        return response()->json([
+            'total_products' => $totalProducts,
+            'total_orders' => $totalOrders,
+            'total_users' => $totalUsers,
+            'total_revenue' => $totalRevenue,
+            'pending_orders' => $pendingOrders,
+            'recent_orders' => $recentOrders,
+            'products_by_status' => $productsByStatus,
+        ]);
+    }
+    
+    /**
      * Get pending products for approval
      *
      * @return \Illuminate\Http\JsonResponse
@@ -177,7 +211,7 @@ class AdminController extends Controller
         }
 
         $settings->percentage = $request->percentage;
-        $settings->updated_by = auth()->id();
+        $settings->updated_by = $request->user() ? $request->user()->id : null;
         $settings->save();
 
         return response()->json([
@@ -288,5 +322,122 @@ class AdminController extends Controller
             ->paginate(20);
 
         return response()->json($users);
+    }
+    
+    /**
+     * Get all products for admin
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function products()
+    {
+        $products = Product::with('seller', 'category')
+            ->paginate(20);
+
+        return response()->json($products);
+    }
+    
+    /**
+     * Create a product (admin)
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createProduct(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'category_id' => 'required|exists:categories,id',
+            'stock' => 'required|integer|min:0',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+        ]);
+
+        $product = new Product();
+        $product->name = $request->name;
+        $product->description = $request->description;
+        $product->price = $request->price;
+        $product->category_id = $request->category_id;
+        $product->stock = $request->stock;
+        $product->seller_id = $request->user() ? $request->user()->id : null; // Admin creating product
+        $product->status = 'approved'; // Auto-approve for admin
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imageName = time() . '_' . $image->getClientOriginalName();
+            $image->storeAs('public/products', $imageName);
+            $product->image = 'storage/products/' . $imageName;
+        }
+
+        $product->save();
+
+        return response()->json([
+            'message' => 'Product created successfully',
+            'product' => $product->load('seller', 'category'),
+        ], 201);
+    }
+    
+    /**
+     * Update a product (admin)
+     *
+     * @param Request $request
+     * @param Product $product
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateProduct(Request $request, Product $product)
+    {
+        $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
+            'price' => 'sometimes|numeric|min:0',
+            'category_id' => 'sometimes|exists:categories,id',
+            'stock' => 'sometimes|integer|min:0',
+            'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'status' => 'sometimes|in:pending,approved,rejected',
+        ]);
+
+        $updateData = $request->only([
+            'name', 'description', 'price', 'category_id', 'stock', 'status'
+        ]);
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($product->image && Storage::exists(str_replace('storage/', 'public/', $product->image))) {
+                Storage::delete(str_replace('storage/', 'public/', $product->image));
+            }
+            
+            $image = $request->file('image');
+            $imageName = time() . '_' . $image->getClientOriginalName();
+            $image->storeAs('public/products', $imageName);
+            $updateData['image'] = 'storage/products/' . $imageName;
+        }
+
+        $product->update($updateData);
+
+        return response()->json([
+            'message' => 'Product updated successfully',
+            'product' => $product->load('seller', 'category'),
+        ]);
+    }
+    
+    /**
+     * Delete a product (admin)
+     *
+     * @param Product $product
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteProduct(Product $product)
+    {
+        // Delete image if exists
+        if ($product->image && Storage::exists(str_replace('storage/', 'public/', $product->image))) {
+            Storage::delete(str_replace('storage/', 'public/', $product->image));
+        }
+        
+        $product->delete();
+
+        return response()->json([
+            'message' => 'Product deleted successfully',
+        ]);
     }
 }
