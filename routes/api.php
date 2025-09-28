@@ -12,6 +12,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\SellerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +53,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Product routes
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{id}', [ProductController::class, 'show']);
+
+    // Seller routes
+    Route::prefix('seller')->group(function () {
+        Route::get('/products', [SellerController::class, 'getProducts']);
+        Route::post('/products', [SellerController::class, 'createProduct']);
+        Route::put('/products/{id}', [SellerController::class, 'updateProduct']);
+        Route::delete('/products/{id}', [SellerController::class, 'deleteProduct']);
+    });
 
     // Category routes
     Route::get('/categories', [CategoryController::class, 'index']);
