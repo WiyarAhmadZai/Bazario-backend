@@ -14,21 +14,6 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin users
-        $admins = [];
-        for ($i = 1; $i <= 2; $i++) {
-            $admin = User::create([
-                'name' => 'Admin ' . $i,
-                'email' => 'admin' . $i . '@example.com',
-                'phone' => '+93 000 000 000' . $i,
-                'password' => Hash::make('password'),
-                'verified' => true,
-                'wallet_balance' => 0.00,
-            ]);
-            $admin->assignRole('admin');
-            $admins[] = $admin;
-        }
-
         // Create seller users
         $sellers = [];
         for ($i = 1; $i <= 5; $i++) {
