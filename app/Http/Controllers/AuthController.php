@@ -206,8 +206,11 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            // Check if email is verified
-            if (!$user->email_verified) {
+            // Check if user is admin - admins don't need email verification
+            $isAdmin = $user->isAdmin();
+
+            // Check if email is verified (unless user is admin)
+            if (!$user->email_verified && !$isAdmin) {
                 // Generate a new verification code
                 $verificationCode = $user->generateVerificationCode();
 
