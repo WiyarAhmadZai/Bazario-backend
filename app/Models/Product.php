@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\CategoryEnum;
 
 class Product extends Model
 {
@@ -24,6 +25,7 @@ class Product extends Model
         'stock',
         'images',
         'category_id',
+        'category_enum',
         'status',
         'is_featured',
     ];
@@ -37,6 +39,7 @@ class Product extends Model
         'images' => 'array',
         'price' => 'decimal:2',
         'discount' => 'decimal:2',
+        'category_enum' => CategoryEnum::class,
     ];
 
     /**
@@ -45,6 +48,14 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Get the seller (user) that owns the product.
+     */
+    public function seller()
+    {
+        return $this->belongsTo(User::class, 'seller_id');
     }
 
     /**
@@ -84,6 +95,14 @@ class Product extends Model
      */
     public function getDiscountedPriceAttribute()
     {
-        return $this->price - $this->discount;
+        return $this->price - ($this->discount ?? 0);
+    }
+
+    /**
+     * Get the category enum options.
+     */
+    public static function getCategoryEnumOptions()
+    {
+        return CategoryEnum::toArray();
     }
 }
