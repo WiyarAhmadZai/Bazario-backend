@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Commented out to avoid conflict with API routes
+// Route::get('/', function () {
+//     return view('welcome');
+// });
