@@ -27,18 +27,18 @@ class AdminController extends Controller
         $totalOrders = Order::count();
         $totalUsers = User::count();
         $totalRevenue = PaymentTransaction::where('status', 'completed')->sum('amount');
-        
+
         // Get recent orders
         $recentOrders = Order::with('user')->orderBy('created_at', 'desc')->limit(5)->get();
-        
+
         // Get pending orders
         $pendingOrders = Order::where('status', 'pending')->count();
-        
+
         // Get products by status
         $productsByStatus = Product::selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->get();
-        
+
         return response()->json([
             'total_products' => $totalProducts,
             'total_orders' => $totalOrders,
@@ -49,7 +49,7 @@ class AdminController extends Controller
             'products_by_status' => $productsByStatus,
         ]);
     }
-    
+
     /**
      * Get pending products for approval
      *
@@ -323,7 +323,7 @@ class AdminController extends Controller
 
         return response()->json($users);
     }
-    
+
     /**
      * Get all products for admin
      *
@@ -336,7 +336,7 @@ class AdminController extends Controller
 
         return response()->json($products);
     }
-    
+
     /**
      * Create a product (admin)
      *
@@ -377,7 +377,7 @@ class AdminController extends Controller
             'product' => $product->load('seller', 'category'),
         ], 201);
     }
-    
+
     /**
      * Update a product (admin)
      *
@@ -398,7 +398,12 @@ class AdminController extends Controller
         ]);
 
         $updateData = $request->only([
-            'name', 'description', 'price', 'category_id', 'stock', 'status'
+            'name',
+            'description',
+            'price',
+            'category_id',
+            'stock',
+            'status'
         ]);
 
         if ($request->hasFile('image')) {
@@ -406,7 +411,7 @@ class AdminController extends Controller
             if ($product->image && Storage::exists(str_replace('storage/', 'public/', $product->image))) {
                 Storage::delete(str_replace('storage/', 'public/', $product->image));
             }
-            
+
             $image = $request->file('image');
             $imageName = time() . '_' . $image->getClientOriginalName();
             $image->storeAs('public/products', $imageName);
@@ -420,7 +425,7 @@ class AdminController extends Controller
             'product' => $product->load('seller', 'category'),
         ]);
     }
-    
+
     /**
      * Delete a product (admin)
      *
@@ -433,7 +438,7 @@ class AdminController extends Controller
         if ($product->image && Storage::exists(str_replace('storage/', 'public/', $product->image))) {
             Storage::delete(str_replace('storage/', 'public/', $product->image));
         }
-        
+
         $product->delete();
 
         return response()->json([
