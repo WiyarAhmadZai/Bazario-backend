@@ -12,7 +12,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category');
+        $query = Product::with('category', 'seller');
 
         // Filter by category
         if ($request->has('category')) {
@@ -77,7 +77,7 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with('category', 'reviews.user')->findOrFail($id);
+        $product = Product::with('category', 'reviews.user', 'seller')->findOrFail($id);
 
         return response()->json($product);
     }
