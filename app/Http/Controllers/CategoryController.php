@@ -12,9 +12,15 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $categories = Category::all();
-
-        return response()->json($categories);
+        try {
+            $categories = Category::all();
+            return response()->json($categories);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch categories',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -27,9 +33,15 @@ class CategoryController extends Controller
             'slug' => 'required|string|max:255|unique:categories',
         ]);
 
-        $category = Category::create($request->all());
-
-        return response()->json($category, 201);
+        try {
+            $category = Category::create($request->all());
+            return response()->json($category, 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create category',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -37,9 +49,15 @@ class CategoryController extends Controller
      */
     public function show($id)
     {
-        $category = Category::with('products')->findOrFail($id);
-
-        return response()->json($category);
+        try {
+            $category = Category::with('products')->findOrFail($id);
+            return response()->json($category);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Category not found',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
 
     /**
@@ -47,16 +65,23 @@ class CategoryController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $category = Category::findOrFail($id);
+        try {
+            $category = Category::findOrFail($id);
 
-        $request->validate([
-            'name' => 'sometimes|required|string|max:255|unique:categories,name,' . $category->id,
-            'slug' => 'sometimes|required|string|max:255|unique:categories,slug,' . $category->id,
-        ]);
+            $request->validate([
+                'name' => 'sometimes|required|string|max:255|unique:categories,name,' . $category->id,
+                'slug' => 'sometimes|required|string|max:255|unique:categories,slug,' . $category->id,
+            ]);
 
-        $category->update($request->all());
+            $category->update($request->all());
 
-        return response()->json($category);
+            return response()->json($category);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update category',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -64,9 +89,16 @@ class CategoryController extends Controller
      */
     public function destroy($id)
     {
-        $category = Category::findOrFail($id);
-        $category->delete();
+        try {
+            $category = Category::findOrFail($id);
+            $category->delete();
 
-        return response()->json(['message' => 'Category deleted successfully']);
+            return response()->json(['message' => 'Category deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete category',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
