@@ -38,6 +38,7 @@ return new class extends Migration
             ])->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->boolean('is_featured')->default(false);
+            $table->unsignedBigInteger('view_count')->default(0); // Add view_count column
             $table->timestamps();
         });
     }

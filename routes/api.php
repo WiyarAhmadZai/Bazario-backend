@@ -30,6 +30,11 @@ Route::get('/test', function () {
     return response()->json(['message' => 'API is working']);
 });
 
+// Test API route
+Route::get('/test-api', function () {
+    return response()->json(['message' => 'API is working correctly']);
+});
+
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -37,6 +42,12 @@ Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 Route::post('/resend-verification-code', [AuthController::class, 'resendVerificationCode']);
 Route::post('/send-password-reset-code', [AuthController::class, 'sendPasswordResetCode']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+// Public product routes
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
 // Development only route for getting verification codes
 Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']);
@@ -55,10 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/profile', [AuthController::class, 'updateProfile']); // For multipart file uploads
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 
-    // Product routes
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/products/{id}', [ProductController::class, 'show']);
-
     // Seller routes
     Route::prefix('seller')->group(function () {
         Route::get('/products', [SellerController::class, 'getProducts']);
@@ -66,10 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/products/{id}', [SellerController::class, 'updateProduct']);
         Route::delete('/products/{id}', [SellerController::class, 'deleteProduct']);
     });
-
-    // Category routes
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
     // Cart routes
     Route::get('/cart', [CartController::class, 'index']);

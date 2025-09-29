@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use App\Enums\CategoryEnum;
 
 class Product extends Model
@@ -28,6 +29,7 @@ class Product extends Model
         'category_enum',
         'status',
         'is_featured',
+        'view_count', // Add view counter
     ];
 
     /**
@@ -40,7 +42,34 @@ class Product extends Model
         'price' => 'decimal:2',
         'discount' => 'decimal:2',
         'category_enum' => CategoryEnum::class,
+        'view_count' => 'integer', // Cast view_count as integer
     ];
+
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Generate slug when creating a product
+        static::creating(function ($product) {
+            if (empty($product->slug)) {
+                $product->slug = Str::slug($product->title);
+            }
+            // Set default view count to 0
+            if (empty($product->view_count)) {
+                $product->view_count = 0;
+            }
+        });
+
+        // Update slug when updating a product title
+        static::updating(function ($product) {
+            if ($product->isDirty('title') && !empty($product->title)) {
+                $product->slug = Str::slug($product->title);
+            }
+        });
+    }
 
     /**
      * Get the category that owns the product.

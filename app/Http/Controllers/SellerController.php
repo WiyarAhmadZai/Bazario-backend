@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use App\Models\Product;
 use App\Models\Category;
 use App\Enums\CategoryEnum;
@@ -59,8 +60,11 @@ class SellerController extends Controller
         // Add seller ID
         $productData['seller_id'] = $user->id;
 
-        // Set default status to pending approval
-        $productData['status'] = 'pending';
+        // Set status based on user role - admins get auto-approved products
+        $productData['status'] = ($user->role === 'admin') ? 'approved' : 'pending';
+
+        // Generate slug from title
+        $productData['slug'] = Str::slug($request->title);
 
         // If category_enum is provided, use it; otherwise, use category_id
         if ($request->filled('category_enum')) {
@@ -116,6 +120,11 @@ class SellerController extends Controller
             'category_enum',
             'is_featured'
         ]);
+
+        // Generate slug from title if title is being updated
+        if ($request->filled('title')) {
+            $productData['slug'] = Str::slug($request->title);
+        }
 
         // If category_enum is provided, use it; otherwise, use category_id
         if ($request->filled('category_enum')) {

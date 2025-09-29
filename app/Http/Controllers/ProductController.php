@@ -12,7 +12,17 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category', 'seller');
+        $query = Product::with('category', 'seller')
+            ->where('status', 'approved'); // Only show approved products in the shop
+
+        // Filter by search term
+        if ($request->has('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
 
         // Filter by category
         if ($request->has('category')) {
@@ -26,6 +36,7 @@ class ProductController extends Controller
             $query->where('price', '>=', $request->min_price);
         }
 
+        // Filter by price range
         if ($request->has('max_price')) {
             $query->where('price', '<=', $request->max_price);
         }
@@ -42,13 +53,20 @@ class ProductController extends Controller
                 $query->orderBy('created_at', 'desc');
                 break;
             default:
-                $query->orderBy('name', 'asc');
+                $query->orderBy('title', 'asc');
                 break;
         }
 
-        $products = $query->paginate(12);
-
-        return response()->json($products);
+        // Check if we want all products
+        if ($request->has('all') && $request->all == true) {
+            $products = $query->get(); // Get all products without pagination
+            return response()->json($products);
+        } else {
+            // Paginate by default
+            $perPage = $request->has('per_page') ? $request->per_page : 12;
+            $products = $query->paginate($perPage);
+            return response()->json($products);
+        }
     }
 
     /**
@@ -78,6 +96,12 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = Product::with('category', 'reviews.user', 'seller')->findOrFail($id);
+
+        // Increment view count
+        $product->increment('view_count');
+
+        // Reload the product to get the updated view_count
+        $product->refresh();
 
         return response()->json($product);
     }
