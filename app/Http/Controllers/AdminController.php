@@ -329,10 +329,25 @@ class AdminController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function products()
+    public function products(Request $request)
     {
-        $products = Product::with('seller', 'category')
-            ->paginate(20);
+        $query = Product::with('seller', 'category');
+
+        // Filter by status if provided
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by search term
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        $products = $query->paginate(20);
 
         return response()->json($products);
     }
