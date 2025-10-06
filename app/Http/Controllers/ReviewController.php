@@ -41,6 +41,9 @@ class ReviewController extends Controller
             ]
         );
 
+        // Load the user relationship for the response
+        $review->load('user');
+
         return response()->json($review, 201);
     }
 
