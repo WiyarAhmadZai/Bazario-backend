@@ -121,16 +121,31 @@ class ReviewController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $review = Review::where('user_id', $request->user()->id)
-            ->where('id', $id)
-            ->firstOrFail();
+        $review = Review::findOrFail($id);
+        $user = $request->user();
+
+        // Check permissions - user can edit their own reviews, admin can edit any, product owner can edit any
+        $canEdit = false;
+
+        if ($review->user_id === $user->id) {
+            $canEdit = true;
+        } elseif ($user->role === 'admin') {
+            $canEdit = true;
+        } elseif ($review->product->seller_id === $user->id) {
+            $canEdit = true;
+        }
+
+        if (!$canEdit) {
+            return response()->json(['message' => 'You are not authorized to edit this review'], 403);
+        }
 
         $request->validate([
-            'rating' => 'sometimes|required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:1000',
+            'rating' => 'sometimes|integer|min:1|max:5',
+            'comment' => 'required|string|max:1000',
         ]);
 
         $review->update($request->all());
+        $review->load('user');
 
         return response()->json($review);
     }
@@ -140,12 +155,57 @@ class ReviewController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $review = Review::where('user_id', $request->user()->id)
-            ->where('id', $id)
-            ->firstOrFail();
+        $review = Review::findOrFail($id);
+
+        // Check permissions
+        $user = $request->user();
+        $canDelete = false;
+
+        // User can delete their own reviews/replies
+        if ($review->user_id === $user->id) {
+            $canDelete = true;
+        }
+        // Admin can delete any review/reply
+        elseif ($user->role === 'admin') {
+            $canDelete = true;
+        }
+        // Product owner can delete any review/reply for their product
+        elseif ($review->product->seller_id === $user->id) {
+            $canDelete = true;
+        }
+
+        if (!$canDelete) {
+            return response()->json(['message' => 'You are not authorized to delete this review'], 403);
+        }
+
+        // If this is a main review, delete all its replies
+        if (!$review->is_reply) {
+            $this->deleteRepliesRecursively($review->id);
+        } else {
+            // If this is a reply, update parent reply count
+            if ($review->parent_id) {
+                $parentReview = Review::find($review->parent_id);
+                if ($parentReview) {
+                    $parentReview->decrement('reply_count');
+                }
+            }
+        }
 
         $review->delete();
 
         return response()->json(['message' => 'Review deleted successfully']);
+    }
+
+    /**
+     * Delete all replies recursively
+     */
+    private function deleteRepliesRecursively($parentId)
+    {
+        $replies = Review::where('parent_id', $parentId)->get();
+
+        foreach ($replies as $reply) {
+            $this->deleteRepliesRecursively($reply->id);
+            $reply->delete();
+        }
     }
 }
