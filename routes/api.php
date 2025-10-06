@@ -49,6 +49,12 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
+// Public user profile route
+Route::get('/users/{id}', [AuthController::class, 'show']);
+
+// Public reviews routes
+Route::get('/reviews/{product_id}', [ReviewController::class, 'index']);
+
 // Development only route for getting verification codes
 Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']);
 
@@ -91,8 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/wishlist/{id}', [WishlistController::class, 'destroy']);
 
     // Review routes
-    Route::get('/reviews', [ReviewController::class, 'index']);
-    Route::post('/reviews', [ReviewController::class, 'store']);
+    Route::post('/reviews/{product_id}', [ReviewController::class, 'store']);
     Route::put('/reviews/{id}', [ReviewController::class, 'update']);
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
 
