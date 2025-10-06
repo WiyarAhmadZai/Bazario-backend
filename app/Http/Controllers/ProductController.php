@@ -36,6 +36,11 @@ class ProductController extends Controller
             $query->where('seller_id', $request->seller_id);
         }
 
+        // Exclude specific product
+        if ($request->has('exclude')) {
+            $query->where('id', '!=', $request->exclude);
+        }
+
         // Filter by price range
         if ($request->has('min_price')) {
             $query->where('price', '>=', $request->min_price);
