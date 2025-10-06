@@ -498,4 +498,156 @@ class AuthController extends Controller
             return false;
         }
     }
+
+    /**
+     * Get user's login sessions
+     */
+    public function getSessions(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            // For now, return mock data. In a real app, you'd track sessions in database
+            $sessions = [
+                [
+                    'id' => 1,
+                    'device' => 'Chrome on Windows',
+                    'location' => 'New York, NY',
+                    'last_activity' => now()->subMinutes(5)->format('M j, Y g:i A'),
+                    'current' => true
+                ],
+                [
+                    'id' => 2,
+                    'device' => 'Safari on iPhone',
+                    'location' => 'Los Angeles, CA',
+                    'last_activity' => now()->subHours(2)->format('M j, Y g:i A'),
+                    'current' => false
+                ]
+            ];
+
+            return response()->json([
+                'sessions' => $sessions
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Get sessions failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to fetch sessions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Terminate a specific session
+     */
+    public function terminateSession(Request $request, $id)
+    {
+        try {
+            // In a real app, you'd invalidate the session token
+            return response()->json([
+                'message' => 'Session terminated successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Terminate session failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to terminate session',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's account activity
+     */
+    public function getActivity(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            // For now, return mock data. In a real app, you'd track activity in database
+            $activity = [
+                [
+                    'id' => 1,
+                    'type' => 'login',
+                    'description' => 'Successful login',
+                    'details' => 'Logged in from Chrome on Windows',
+                    'timestamp' => now()->subMinutes(10)->format('M j, Y g:i A')
+                ],
+                [
+                    'id' => 2,
+                    'type' => 'password_change',
+                    'description' => 'Password changed',
+                    'details' => 'Password was updated successfully',
+                    'timestamp' => now()->subDays(1)->format('M j, Y g:i A')
+                ],
+                [
+                    'id' => 3,
+                    'type' => 'profile_update',
+                    'description' => 'Profile updated',
+                    'details' => 'Personal information was modified',
+                    'timestamp' => now()->subDays(3)->format('M j, Y g:i A')
+                ]
+            ];
+
+            return response()->json([
+                'activity' => $activity
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Get activity failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to fetch activity',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export user data
+     */
+    public function exportUserData(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            // Prepare user data for CSV export
+            $userData = [
+                'User ID' => $user->id,
+                'Name' => $user->name ?? '',
+                'Email' => $user->email ?? '',
+                'Phone' => $user->phone ?? '',
+                'Bio' => $user->bio ?? '',
+                'Date of Birth' => $user->date_of_birth ?? '',
+                'Address' => $user->address ?? '',
+                'City' => $user->city ?? '',
+                'Country' => $user->country ?? '',
+                'Gender' => $user->gender ?? '',
+                'Profession' => $user->profession ?? '',
+                'Email Verified' => $user->email_verified ? 'Yes' : 'No',
+                'Account Created' => $user->created_at ?? '',
+                'Last Login' => $user->last_login_at ?? '',
+                'Social Links' => $user->social_links ? json_encode($user->social_links) : '',
+                'Export Date' => now()->format('Y-m-d H:i:s')
+            ];
+
+            // Convert to CSV format
+            $csvContent = '';
+            foreach ($userData as $key => $value) {
+                $csvContent .= '"' . $key . '","' . str_replace('"', '""', $value) . '"' . "\n";
+            }
+
+            // Add BOM for Excel compatibility
+            $csvWithBOM = "\xEF\xBB\xBF" . $csvContent;
+
+            return response($csvWithBOM, 200, [
+                'Content-Type' => 'text/csv; charset=utf-8',
+                'Content-Disposition' => 'attachment; filename="user-data-' . $user->id . '-' . now()->format('Y-m-d') . '.csv"'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Export user data failed:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Failed to export user data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
