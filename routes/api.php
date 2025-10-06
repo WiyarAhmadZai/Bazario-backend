@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user/profile', [AuthController::class, 'updateProfile']);
     Route::post('/user/profile', [AuthController::class, 'updateProfile']); // For multipart file uploads
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
 
     // Seller routes
     Route::prefix('seller')->group(function () {
