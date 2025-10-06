@@ -64,4 +64,18 @@ class Review extends Model
     {
         return $this->replies()->with('allReplies', 'user');
     }
+
+    /**
+     * Load all nested replies with users
+     */
+    public function loadNestedReplies()
+    {
+        $this->load(['user', 'replies.user']);
+
+        foreach ($this->replies as $reply) {
+            $reply->loadNestedReplies();
+        }
+
+        return $this;
+    }
 }
