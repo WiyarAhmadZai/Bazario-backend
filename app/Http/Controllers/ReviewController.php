@@ -12,11 +12,21 @@ class ReviewController extends Controller
      */
     public function index($productId)
     {
-        $reviews = Review::with(['user', 'replies.user', 'replies.replies.user'])
+        // Get all reviews and replies for this product
+        $allReviews = Review::with(['user'])
             ->where('product_id', $productId)
-            ->where('is_reply', false) // Only get main reviews, not replies
-            ->orderBy('created_at', 'desc')
+            ->orderBy('created_at', 'asc')
             ->get();
+
+        // Separate main reviews from replies
+        $mainReviews = $allReviews->where('is_reply', false)->values();
+        $replies = $allReviews->where('is_reply', true)->groupBy('parent_id');
+
+        // Build the nested structure
+        $reviews = $mainReviews->map(function ($review) use ($replies) {
+            $review->replies = $this->buildNestedReplies($review->id, $replies);
+            return $review;
+        });
 
         // Calculate average rating
         $averageRating = Review::where('product_id', $productId)
@@ -32,6 +42,21 @@ class ReviewController extends Controller
             'average_rating' => round($averageRating, 1),
             'total_reviews' => $totalReviews
         ]);
+    }
+
+    /**
+     * Build nested replies structure recursively
+     */
+    private function buildNestedReplies($parentId, $replies)
+    {
+        if (!isset($replies[$parentId])) {
+            return collect();
+        }
+
+        return $replies[$parentId]->map(function ($reply) use ($replies) {
+            $reply->replies = $this->buildNestedReplies($reply->id, $replies);
+            return $reply;
+        });
     }
 
     /**
@@ -76,7 +101,7 @@ class ReviewController extends Controller
         $reply = Review::create([
             'user_id' => $request->user()->id,
             'product_id' => $productId,
-            'parent_id' => $reviewId,
+            'parent_id' => $reviewId, // This can be either a main review or another reply
             'comment' => $request->comment,
             'is_reply' => true,
             'rating' => 0, // Replies don't have ratings
