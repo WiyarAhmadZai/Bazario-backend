@@ -73,6 +73,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
 
+    // Security routes
+    Route::get('/user/sessions', [AuthController::class, 'getSessions']);
+    Route::delete('/user/sessions/{id}', [AuthController::class, 'terminateSession']);
+    Route::get('/user/activity', [AuthController::class, 'getActivity']);
+    Route::get('/user/export', [AuthController::class, 'exportUserData']);
+
     // Seller routes
     Route::prefix('seller')->group(function () {
         Route::get('/products', [SellerController::class, 'getProducts']);
