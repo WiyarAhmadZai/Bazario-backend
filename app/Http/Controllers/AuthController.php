@@ -326,6 +326,7 @@ class AuthController extends Controller
                 'name' => 'sometimes|string|max:255',
                 'bio' => 'nullable|string|max:1000',
                 'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'phone' => 'nullable|string|max:20',
                 'date_of_birth' => 'nullable|date',
                 'address' => 'nullable|string|max:255',
                 'city' => 'nullable|string|max:100',
@@ -344,6 +345,7 @@ class AuthController extends Controller
             $user->update($request->only([
                 'name',
                 'bio',
+                'phone',
                 'date_of_birth',
                 'address',
                 'city',
