@@ -20,6 +20,9 @@ class Review extends Model
         'rating',
         'comment',
         'approved',
+        'parent_id',
+        'is_reply',
+        'reply_count',
     ];
 
     /**
@@ -36,5 +39,29 @@ class Review extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the parent review (for replies).
+     */
+    public function parent()
+    {
+        return $this->belongsTo(Review::class, 'parent_id');
+    }
+
+    /**
+     * Get the replies for this review.
+     */
+    public function replies()
+    {
+        return $this->hasMany(Review::class, 'parent_id')->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * Get all replies recursively (for nested replies).
+     */
+    public function allReplies()
+    {
+        return $this->replies()->with('allReplies', 'user');
     }
 }
