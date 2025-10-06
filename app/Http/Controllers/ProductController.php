@@ -31,6 +31,11 @@ class ProductController extends Controller
             });
         }
 
+        // Filter by seller
+        if ($request->has('seller_id')) {
+            $query->where('seller_id', $request->seller_id);
+        }
+
         // Filter by price range
         if ($request->has('min_price')) {
             $query->where('price', '>=', $request->min_price);
