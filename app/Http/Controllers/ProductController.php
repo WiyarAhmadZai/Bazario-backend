@@ -31,6 +31,11 @@ class ProductController extends Controller
             });
         }
 
+        // Filter by category ID
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
         // Filter by seller
         if ($request->has('seller_id')) {
             $query->where('seller_id', $request->seller_id);
