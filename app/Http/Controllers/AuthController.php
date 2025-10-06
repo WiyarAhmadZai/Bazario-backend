@@ -199,18 +199,15 @@ class AuthController extends Controller
             // Find user by email
             $user = User::where('email', $request->email)->first();
 
-            // Check if user exists and password is correct
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Check if user exists
+            if (!$user) {
                 return response()->json([
-                    'message' => 'Invalid login credentials'
+                    'message' => 'These credentials do not match our records.'
                 ], 401);
             }
 
-            // Check if user is admin - admins don't need email verification
-            $isAdmin = $user->isAdmin();
-
-            // Check if email is verified (unless user is admin)
-            if (!$user->email_verified && !$isAdmin) {
+            // Check if email is verified
+            if (!$user->email_verified) {
                 // Generate a new verification code
                 $verificationCode = $user->generateVerificationCode();
 
@@ -218,44 +215,40 @@ class AuthController extends Controller
                 $emailSent = $this->sendVerificationEmail($user, $verificationCode);
 
                 return response()->json([
-                    'message' => 'Please verify your email address before logging in.',
-                    'requires_verification' => true,
+                    'message' => 'Please verify your email before logging in.',
                     'email' => $user->email,
                     'verification_code' => !$emailSent ? $verificationCode : null, // Only expose code if email failed
-                    'redirect_to_verification' => true
-                ], 403);
+                    'requires_verification' => true
+                ], 401);
             }
+
+            // Check if password is correct
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'message' => 'These credentials do not match our records.'
+                ], 401);
+            }
+
+            // Check if user is active
+            if (!$user->is_active) {
+                return response()->json([
+                    'message' => 'Your account has been deactivated. Please contact support.'
+                ], 401);
+            }
+
+            // Create token
+            $token = $user->createToken('auth-token')->plainTextToken;
 
             // Update last login
             $user->update(['last_login_at' => now()]);
 
-            // Create a token for the user
-            $token = $user->createToken('auth_token')->plainTextToken;
-
             return response()->json([
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'bio' => $user->bio,
-                    'image' => $user->image, // Relative path as stored in database
-                    'date_of_birth' => $user->date_of_birth,
-                    'address' => $user->address,
-                    'city' => $user->city,
-                    'country' => $user->country,
-                    'gender' => $user->gender,
-                    'profession' => $user->profession,
-                    'role' => $user->role,
-                    'verified' => $user->verified,
-                    'wallet_balance' => $user->wallet_balance,
-                    'is_active' => $user->is_active,
-                    'email_verified' => $user->email_verified,
-                ],
-                'token' => $token,
-                'message' => 'User logged in successfully'
-            ]);
+                'message' => 'Login successful',
+                'user' => $user,
+                'token' => $token
+            ], 200);
         } catch (\Exception $e) {
+            Log::error('Login failed:', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Login failed',
                 'error' => $e->getMessage()
@@ -269,13 +262,14 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
-            // Revoke the current access token
+            // Revoke the token that was used to authenticate the current request
             $request->user()->currentAccessToken()->delete();
 
             return response()->json([
-                'message' => 'User logged out successfully'
-            ]);
+                'message' => 'Logged out successfully'
+            ], 200);
         } catch (\Exception $e) {
+            Log::error('Logout failed:', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Logout failed',
                 'error' => $e->getMessage()
@@ -288,32 +282,32 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        try {
-            // Get fresh user data from database
-            $user = User::find($request->user()->id);
+        return response()->json($request->user());
+    }
 
-            return response()->json([
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'bio' => $user->bio,
-                'image' => $user->image, // Keep as stored in database (relative path)
-                'date_of_birth' => $user->date_of_birth,
-                'address' => $user->address,
-                'city' => $user->city,
-                'country' => $user->country,
-                'gender' => $user->gender,
-                'profession' => $user->profession,
-                'social_links' => $user->social_links,
-                'role' => $user->role,
-                'verified' => $user->verified,
-                'wallet_balance' => $user->wallet_balance,
-                'is_active' => $user->is_active,
-            ]);
+    /**
+     * Get user profile (public)
+     */
+    public function show($id)
+    {
+        try {
+            // Find user by ID and only return public information
+            $user = User::select('id', 'name', 'bio', 'created_at')
+                ->where('id', $id)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            return response()->json($user, 200);
         } catch (\Exception $e) {
+            Log::error('Get user profile failed:', ['error' => $e->getMessage()]);
             return response()->json([
-                'message' => 'Failed to retrieve user data',
+                'message' => 'Failed to fetch user profile',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -327,111 +321,40 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            // Log the incoming request for debugging
-            Log::info('Profile update request received:', [
-                'user_id' => $user->id,
-                'method' => $request->method(),
-                'has_file' => $request->hasFile('image'),
-                'all_data' => $request->all()
-            ]);
-
+            // Validate the request
             $request->validate([
                 'name' => 'sometimes|string|max:255',
-                'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
-                'phone' => 'sometimes|string|max:20',
-                'bio' => 'sometimes|string|max:1000',
-                'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
-                'date_of_birth' => 'sometimes|date',
-                'address' => 'sometimes|string|max:500',
-                'city' => 'sometimes|string|max:100',
-                'country' => 'sometimes|string|max:100',
-                'gender' => 'sometimes|in:male,female,other',
-                'profession' => 'sometimes|string|max:100',
-                'social_links' => 'sometimes|array',
+                'bio' => 'nullable|string|max:1000',
+                'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'date_of_birth' => 'nullable|date',
+                'address' => 'nullable|string|max:255',
+                'city' => 'nullable|string|max:100',
+                'country' => 'nullable|string|max:100',
+                'gender' => 'nullable|string|in:male,female,other',
+                'profession' => 'nullable|string|max:100',
             ]);
 
-            // Handle image upload
-            $updateData = $request->only([
+            // Handle avatar upload
+            if ($request->hasFile('avatar')) {
+                $avatarPath = $request->file('avatar')->store('avatars', 'public');
+                $user->avatar = $avatarPath;
+            }
+
+            // Update other fields
+            $user->update($request->only([
                 'name',
-                'email',
-                'phone',
                 'bio',
                 'date_of_birth',
                 'address',
                 'city',
                 'country',
                 'gender',
-                'profession',
-                'social_links'
-            ]);
+                'profession'
+            ]));
 
-            if ($request->hasFile('image')) {
-                $image = $request->file('image');
-                $imageName = time() . '_' . $image->getClientOriginalName();
-
-                // Use move() method instead of storeAs() for more reliability
-                $destinationPath = storage_path('app/public/images');
-
-                // Ensure directory exists
-                if (!file_exists($destinationPath)) {
-                    mkdir($destinationPath, 0755, true);
-                }
-
-                // Move the uploaded file
-                if ($image->move($destinationPath, $imageName)) {
-                    $updateData['image'] = 'storage/images/' . $imageName;
-
-                    Log::info('Image uploaded successfully:', [
-                        'original_name' => $image->getClientOriginalName(),
-                        'stored_name' => $imageName,
-                        'relative_path' => $updateData['image'],
-                        'file_exists' => file_exists($destinationPath . '/' . $imageName),
-                        'file_size' => file_exists($destinationPath . '/' . $imageName) ? filesize($destinationPath . '/' . $imageName) : 0
-                    ]);
-                } else {
-                    Log::error('Failed to move uploaded file');
-                    throw new \Exception('Failed to upload image file');
-                }
-            }
-
-            Log::info('About to update user with data:', $updateData);
-
-            $user->update($updateData);
-
-            // Log successful update
-            Log::info('User updated successfully:', [
-                'user_id' => $user->id,
-                'updated_image' => $user->fresh()->image
-            ]);
-
-            return response()->json([
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'bio' => $user->bio,
-                    'image' => $user->fresh()->image, // Get fresh data from database
-                    'date_of_birth' => $user->date_of_birth,
-                    'address' => $user->address,
-                    'city' => $user->city,
-                    'country' => $user->country,
-                    'gender' => $user->gender,
-                    'profession' => $user->profession,
-                    'social_links' => $user->social_links,
-                    'role' => $user->role,
-                    'verified' => $user->verified,
-                    'wallet_balance' => $user->wallet_balance,
-                    'is_active' => $user->is_active,
-                ],
-                'message' => 'Profile updated successfully'
-            ]);
+            return response()->json($user, 200);
         } catch (\Exception $e) {
-            Log::error('Profile update failed:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            Log::error('Update profile failed:', ['error' => $e->getMessage()]);
             return response()->json([
                 'message' => 'Failed to update profile',
                 'error' => $e->getMessage()
@@ -440,102 +363,18 @@ class AuthController extends Controller
     }
 
     /**
-     * Send password reset code
-     */
-    public function sendPasswordResetCode(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        try {
-            $user = User::where('email', $request->email)->first();
-
-            // Generate verification code for password reset
-            $verificationCode = $user->generateVerificationCode();
-
-            // Send password reset email
-            $emailSent = $this->sendVerificationEmail($user, $verificationCode, 'password_reset');
-
-            return response()->json([
-                'message' => $emailSent
-                    ? 'Password reset code sent to your email!'
-                    : 'Password reset code generated but email delivery failed. Please contact support.',
-                'email' => $user->email,
-                'verification_code' => !$emailSent ? $verificationCode : null, // Only expose code if email failed
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Send password reset code failed:', ['error' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Failed to send password reset code',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Reset password with verification code
-     */
-    public function resetPassword(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'verification_code' => 'required|string|size:6',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        try {
-            $user = User::where('email', $request->email)->first();
-
-            if (!$user) {
-                return response()->json([
-                    'message' => 'User not found'
-                ], 404);
-            }
-
-            // Verify the code (without marking email as verified for password reset)
-            if (
-                $user->verification_code === $request->verification_code &&
-                $user->verification_code_expires_at &&
-                $user->verification_code_expires_at->isFuture()
-            ) {
-
-                // Update password and clear verification code
-                $user->update([
-                    'password' => Hash::make($request->password),
-                    'verification_code' => null,
-                    'verification_code_expires_at' => null,
-                ]);
-
-                return response()->json([
-                    'message' => 'Password reset successfully! You can now login with your new password.'
-                ]);
-            } else {
-                return response()->json([
-                    'message' => 'Invalid or expired verification code'
-                ], 400);
-            }
-        } catch (\Exception $e) {
-            Log::error('Password reset failed:', ['error' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Password reset failed',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Change password (for authenticated users)
+     * Change password
      */
     public function changePassword(Request $request)
     {
-        $request->validate([
-            'current_password' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
         try {
             $user = $request->user();
+
+            // Validate the request
+            $request->validate([
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:8|confirmed',
+            ]);
 
             // Check if current password is correct
             if (!Hash::check($request->current_password, $user->password)) {
@@ -546,12 +385,12 @@ class AuthController extends Controller
 
             // Update password
             $user->update([
-                'password' => Hash::make($request->password),
+                'password' => Hash::make($request->new_password)
             ]);
 
             return response()->json([
-                'message' => 'Password changed successfully!'
-            ]);
+                'message' => 'Password changed successfully'
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Change password failed:', ['error' => $e->getMessage()]);
             return response()->json([
@@ -562,66 +401,68 @@ class AuthController extends Controller
     }
 
     /**
-     * Get verification code for testing (only for development)
+     * Get verification code for development/testing purposes
+     * ONLY for non-production environments
      */
     public function getVerificationCode(Request $request)
     {
-        // Only allow this in local development environment
-        if (!app()->environment('local', 'development')) {
-            return response()->json(['message' => 'Not available in production'], 403);
+        // Only allow in non-production environments
+        if (app()->environment('production')) {
+            return response()->json([
+                'message' => 'This endpoint is only available in development environments'
+            ], 403);
         }
 
+        // Validate the request
         $request->validate([
             'email' => 'required|email|exists:users,email',
         ]);
 
         try {
+            // Find user by email
             $user = User::where('email', $request->email)->first();
 
             if (!$user) {
-                return response()->json(['message' => 'User not found'], 404);
+                return response()->json([
+                    'message' => 'User not found'
+                ], 404);
             }
 
-            if (!$user->verification_code) {
-                return response()->json(['message' => 'No verification code found for this user'], 404);
+            // Get the verification code
+            $verificationCode = $user->getVerificationCodeForTesting();
+
+            if (!$verificationCode) {
+                return response()->json([
+                    'message' => 'Verification code not found or expired'
+                ], 404);
             }
 
             return response()->json([
-                'verification_code' => $user->getVerificationCodeForTesting(),
-                'expires_at' => $user->verification_code_expires_at,
-            ]);
+                'verification_code' => $verificationCode
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Get verification code failed:', ['error' => $e->getMessage()]);
             return response()->json([
-                'message' => 'Failed to retrieve verification code',
+                'message' => 'Failed to get verification code',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Send verification email with fallback mechanisms
-     * 
-     * @param User $user
-     * @param string $verificationCode
-     * @param string $type 'registration' or 'password_reset'
-     * @return bool
+     * Send verification email
      */
-    private function sendVerificationEmail($user, $verificationCode, $type = 'registration')
+    private function sendVerificationEmail($user, $verificationCode)
     {
         try {
-            // Try to send the email
-            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode, $type));
+            Mail::to($user->email)->send(new VerificationCodeMail($user, $verificationCode));
             return true;
         } catch (\Exception $e) {
-            // Log the error
-            Log::warning('Failed to send verification email: ' . $e->getMessage());
-
-            // In development environment, log the verification code
-            if (app()->environment('local', 'development')) {
-                Log::info('Verification code for ' . $user->email . ': ' . $verificationCode);
-            }
-
+            Log::error('Failed to send verification email:', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id,
+                'email' => $user->email
+            ]);
             return false;
         }
     }
