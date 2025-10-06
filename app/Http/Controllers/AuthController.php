@@ -352,7 +352,13 @@ class AuthController extends Controller
                 'profession'
             ]));
 
-            return response()->json($user, 200);
+            // Load the user with fresh data
+            $user->refresh();
+
+            return response()->json([
+                'user' => $user,
+                'message' => 'Profile updated successfully'
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Update profile failed:', ['error' => $e->getMessage()]);
             return response()->json([
@@ -447,6 +453,30 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Verify user password for profile updates
+     */
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        if (Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Password verified successfully',
+                'verified' => true
+            ], 200);
+        }
+
+        return response()->json([
+            'message' => 'Invalid password',
+            'verified' => false
+        ], 401);
     }
 
     /**
