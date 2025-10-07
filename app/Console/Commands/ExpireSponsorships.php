@@ -26,13 +26,13 @@ class ExpireSponsorships extends Command
      */
     public function handle()
     {
-        $expiredProducts = Product::where('sponsor', true)
-            ->where('sponsor_end_time', '<', now())
+        $expiredProducts = Product::where('sponsor', 1)
+            ->where('sponsor_end_time', '<=', now())
             ->get();
 
         $count = 0;
         foreach ($expiredProducts as $product) {
-            $product->update(['sponsor' => false]);
+            $product->update(['sponsor' => 0]);
             $count++;
 
             $this->info("Expired sponsorship for product: {$product->title} (ID: {$product->id})");
