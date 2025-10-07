@@ -402,6 +402,62 @@ class AdminController extends Controller
     }
 
     /**
+     * Toggle sponsor status for a product
+     */
+    public function toggleSponsor(Request $request, $id)
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found',
+                'error' => 'Product with ID ' . $id . ' not found'
+            ], 404);
+        }
+
+        $request->validate([
+            'sponsor' => 'required|boolean',
+            'sponsor_start_time' => 'required_if:sponsor,true|date|after_or_equal:now',
+            'sponsor_end_time' => 'required_if:sponsor,true|date|after:sponsor_start_time',
+        ]);
+
+        $product->update([
+            'sponsor' => $request->sponsor,
+            'sponsor_start_time' => $request->sponsor ? $request->sponsor_start_time : null,
+            'sponsor_end_time' => $request->sponsor ? $request->sponsor_end_time : null,
+        ]);
+
+        return response()->json([
+            'message' => $request->sponsor ? 'Product sponsored successfully' : 'Product sponsorship removed',
+            'product' => $product->load('seller', 'category'),
+            'sponsor' => $product->sponsor,
+            'sponsor_start_time' => $product->sponsor_start_time,
+            'sponsor_end_time' => $product->sponsor_end_time,
+        ]);
+    }
+
+    /**
+     * Get expired sponsored products and remove their sponsorship
+     */
+    public function expireSponsorships()
+    {
+        $expiredProducts = Product::where('sponsor', true)
+            ->where('sponsor_end_time', '<', now())
+            ->get();
+
+        $count = 0;
+        foreach ($expiredProducts as $product) {
+            $product->update(['sponsor' => false]);
+            $count++;
+        }
+
+        return response()->json([
+            'message' => "Expired {$count} sponsored products",
+            'expired_count' => $count
+        ]);
+    }
+
+    /**
      * Create a product (admin)
      *
      * @param Request $request
