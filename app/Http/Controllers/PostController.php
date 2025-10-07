@@ -385,8 +385,43 @@ class PostController extends Controller
             ->where('sponsor_start_time', '<=', now())
             ->where('sponsor_end_time', '>', now())
             ->where('status', 'approved')
-            ->with(['seller:id,name,email,avatar', 'category:id,name'])
-            ->orderBy('created_at', 'desc');
+            ->with(['seller:id,name,email,avatar', 'category:id,name']);
+
+        // Apply search filter
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('seller', function ($sellerQuery) use ($searchTerm) {
+                        $sellerQuery->where('name', 'like', "%{$searchTerm}%");
+                    });
+            });
+        }
+
+        // Apply sorting
+        $sortBy = $request->get('sort_by', 'newest');
+        switch ($sortBy) {
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'price_low':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_high':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'name_asc':
+                $query->orderBy('title', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('title', 'desc');
+                break;
+            case 'newest':
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
 
         $products = $query->paginate($perPage);
 
