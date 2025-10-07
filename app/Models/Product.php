@@ -265,7 +265,7 @@ class Product extends Model
                 'id' => $this->seller_id,
                 'name' => $this->seller->name ?? 'Unknown Seller',
                 'email' => $this->seller->email ?? '',
-                'avatar' => $this->seller->avatar ?? null,
+                'avatar' => $this->seller->avatar ? asset('storage/' . $this->seller->avatar) : null,
             ],
             'likes_count' => $this->likes()->count(),
             'comments_count' => 0, // Products don't have comments yet
