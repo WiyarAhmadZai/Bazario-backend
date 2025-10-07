@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Models\Favorite;
+use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
@@ -154,5 +156,81 @@ class ProductController extends Controller
         $product->delete();
 
         return response()->json(['message' => 'Product deleted successfully']);
+    }
+
+    /**
+     * Add product to favorites
+     */
+    public function addToFavorites($id)
+    {
+        $user = Auth::user();
+        $product = Product::findOrFail($id);
+
+        // Check if already favorited
+        $existingFavorite = Favorite::where('user_id', $user->id)
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($existingFavorite) {
+            return response()->json([
+                'message' => 'Product already in favorites',
+                'is_favorited' => true,
+                'favorites_count' => $product->favorites()->count()
+            ]);
+        }
+
+        // Add to favorites
+        Favorite::create([
+            'user_id' => $user->id,
+            'product_id' => $product->id
+        ]);
+
+        return response()->json([
+            'message' => 'Product added to favorites',
+            'is_favorited' => true,
+            'favorites_count' => $product->favorites()->count()
+        ]);
+    }
+
+    /**
+     * Remove product from favorites
+     */
+    public function removeFromFavorites($id)
+    {
+        $user = Auth::user();
+        $product = Product::findOrFail($id);
+
+        // Remove from favorites
+        $deleted = Favorite::where('user_id', $user->id)
+            ->where('product_id', $product->id)
+            ->delete();
+
+        if ($deleted) {
+            return response()->json([
+                'message' => 'Product removed from favorites',
+                'is_favorited' => false,
+                'favorites_count' => $product->favorites()->count()
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Product was not in favorites',
+            'is_favorited' => false,
+            'favorites_count' => $product->favorites()->count()
+        ]);
+    }
+
+    /**
+     * Get user's favorite products
+     */
+    public function getFavorites()
+    {
+        $user = Auth::user();
+
+        $favorites = $user->favoriteProducts()
+            ->with(['category', 'seller'])
+            ->paginate(12);
+
+        return response()->json($favorites);
     }
 }
