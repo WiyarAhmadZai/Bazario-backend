@@ -417,15 +417,22 @@ class AdminController extends Controller
 
         $request->validate([
             'sponsor' => 'required|boolean',
-            'sponsor_start_time' => 'required_if:sponsor,true|date|after_or_equal:now',
-            'sponsor_end_time' => 'required_if:sponsor,true|date|after:sponsor_start_time',
+            'sponsor_end_time' => 'required_if:sponsor,true|date|after:now',
         ]);
 
-        $product->update([
-            'sponsor' => $request->sponsor,
-            'sponsor_start_time' => $request->sponsor ? $request->sponsor_start_time : null,
-            'sponsor_end_time' => $request->sponsor ? $request->sponsor_end_time : null,
-        ]);
+        if ($request->sponsor) {
+            $product->update([
+                'sponsor' => 1,
+                'sponsor_start_time' => now(),
+                'sponsor_end_time' => $request->sponsor_end_time,
+            ]);
+        } else {
+            $product->update([
+                'sponsor' => 0,
+                'sponsor_start_time' => null,
+                'sponsor_end_time' => null,
+            ]);
+        }
 
         return response()->json([
             'message' => $request->sponsor ? 'Product sponsored successfully' : 'Product sponsorship removed',
@@ -441,13 +448,13 @@ class AdminController extends Controller
      */
     public function expireSponsorships()
     {
-        $expiredProducts = Product::where('sponsor', true)
-            ->where('sponsor_end_time', '<', now())
+        $expiredProducts = Product::where('sponsor', 1)
+            ->where('sponsor_end_time', '<=', now())
             ->get();
 
         $count = 0;
         foreach ($expiredProducts as $product) {
-            $product->update(['sponsor' => false]);
+            $product->update(['sponsor' => 0]);
             $count++;
         }
 
