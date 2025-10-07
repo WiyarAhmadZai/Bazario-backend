@@ -9,6 +9,7 @@ use App\Models\PostFavorite;
 use App\Models\Notification;
 use App\Models\NotificationSetting;
 use App\Models\Product;
+use App\Models\Favorite;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -240,7 +241,7 @@ class PostController extends Controller
             return response()->json([
                 'action' => $action,
                 'is_liked' => !$isLiked,
-                'likes_count' => $post->likes()->count()
+                'likes_count' => $post->likes_count
             ]);
         } else {
             // Handle post likes
@@ -262,7 +263,7 @@ class PostController extends Controller
             return response()->json([
                 'action' => $action,
                 'is_liked' => !$isLiked,
-                'likes_count' => $post->likes()->count()
+                'likes_count' => $post->likes_count
             ]);
         }
     }
@@ -288,13 +289,21 @@ class PostController extends Controller
         }
 
         if ($isProduct) {
-            // For products, we'll use a simple approach since they don't have favorites yet
-            // We can create a product_favorites table or use the existing wishlist
-            // For now, let's return a simple response
+            // Handle product favorites using the Favorite model
+            $isFavorited = $post->favorites()->where('user_id', $user->id)->exists();
+
+            if ($isFavorited) {
+                $post->favorites()->where('user_id', $user->id)->delete();
+                $action = 'unfavorited';
+            } else {
+                $post->favorites()->create(['user_id' => $user->id]);
+                $action = 'favorited';
+            }
+
             return response()->json([
-                'action' => 'favorited',
-                'is_favorited' => true,
-                'favorites_count' => 0
+                'action' => $action,
+                'is_favorited' => !$isFavorited,
+                'favorites_count' => $post->favorites_count
             ]);
         } else {
             // Handle post favorites
@@ -316,7 +325,7 @@ class PostController extends Controller
             return response()->json([
                 'action' => $action,
                 'is_favorited' => !$isFavorited,
-                'favorites_count' => $post->favorites()->count()
+                'favorites_count' => $post->favorites_count
             ]);
         }
     }
@@ -370,6 +379,7 @@ class PostController extends Controller
     {
         $perPage = $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100, 150]) ? $perPage : 10;
+        $user = Auth::user(); // Get authenticated user
 
         $query = Product::where('sponsor', 1)
             ->where('sponsor_start_time', '<=', now())
@@ -380,9 +390,29 @@ class PostController extends Controller
 
         $products = $query->paginate($perPage);
 
-        // Transform products to post format
-        $products->getCollection()->transform(function ($product) {
-            return $product->toPostFormat();
+        // Transform products to post format with user status
+        $products->getCollection()->transform(function ($product) use ($user) {
+            $postData = $product->toPostFormat();
+
+            // Add user-specific status if authenticated
+            if ($user) {
+                $postData['is_liked'] = $product->likes()->where('user_id', $user->id)->exists();
+                $postData['is_favorited'] = $product->favorites()->where('user_id', $user->id)->exists();
+                // Check if the current user is following the product's seller
+                $postData['is_following'] = $user->following()->where('followed_id', $product->seller_id)->exists();
+                // Check notification settings for this user
+                $notificationSetting = $user->notificationSettings()
+                    ->where('followed_user_id', $product->seller_id)
+                    ->first();
+                $postData['notifications_enabled'] = $notificationSetting ? $notificationSetting->notify_on_post : false;
+            } else {
+                $postData['is_liked'] = false;
+                $postData['is_favorited'] = false;
+                $postData['is_following'] = false;
+                $postData['notifications_enabled'] = false;
+            }
+
+            return $postData;
         });
 
         return response()->json($products);
