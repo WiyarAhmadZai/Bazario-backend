@@ -27,6 +27,21 @@ class SellerController extends Controller
     }
 
     /**
+     * Get a specific product by ID
+     */
+    public function getProduct($id)
+    {
+        $user = Auth::user();
+
+        $product = Product::where('id', $id)
+            ->where('seller_id', $user->id)
+            ->with('category')
+            ->firstOrFail();
+
+        return response()->json($product);
+    }
+
+    /**
      * Create a new product
      */
     public function createProduct(Request $request)
