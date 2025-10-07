@@ -400,8 +400,27 @@ class AdminController extends Controller
      * @param Product $product
      * @return \Illuminate\Http\JsonResponse
      */
-    public function updateProduct(Request $request, Product $product)
+    public function updateProduct(Request $request, $id)
     {
+        // Find the product manually since model binding might not be working
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found',
+                'error' => 'Product with ID ' . $id . ' not found'
+            ], 404);
+        }
+
+        // Debug logging
+        \Log::info('AdminController::updateProduct called', [
+            'product_id' => $product->id,
+            'product_title' => $product->title,
+            'product_status' => $product->status,
+            'request_data' => $request->all(),
+            'user_id' => $request->user() ? $request->user()->id : 'NOT_AUTHENTICATED'
+        ]);
+
         $request->validate([
             'title' => 'sometimes|string|max:255',
             'name' => 'sometimes|string|max:255', // Support both title and name
@@ -450,9 +469,18 @@ class AdminController extends Controller
 
         $product->update($updateData);
 
+        // Reload the product to get the updated data
+        $product->refresh();
+
+        // Load the product with relationships
+        $productWithRelations = $product->load('seller', 'category');
+
         return response()->json([
             'message' => 'Product updated successfully',
-            'product' => $product->load('seller', 'category'),
+            'product' => $productWithRelations,
+            'status' => $product->status, // Explicitly return the status
+            'id' => $product->id,
+            'title' => $product->title,
         ]);
     }
 
