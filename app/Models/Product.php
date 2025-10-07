@@ -30,6 +30,9 @@ class Product extends Model
         'status',
         'is_featured',
         'view_count', // Add view counter
+        'sponsor',
+        'sponsor_start_time',
+        'sponsor_end_time',
     ];
 
     /**
@@ -43,6 +46,9 @@ class Product extends Model
         'discount' => 'decimal:2',
         'category_enum' => CategoryEnum::class,
         'view_count' => 'integer', // Cast view_count as integer
+        'sponsor' => 'boolean',
+        'sponsor_start_time' => 'datetime',
+        'sponsor_end_time' => 'datetime',
     ];
 
     /**
@@ -141,5 +147,84 @@ class Product extends Model
     public static function getCategoryEnumOptions()
     {
         return CategoryEnum::toArray();
+    }
+
+    /**
+     * Scope for active sponsored products
+     */
+    public function scopeActiveSponsored($query)
+    {
+        return $query->where('sponsor', true)
+            ->where('sponsor_start_time', '<=', now())
+            ->where('sponsor_end_time', '>=', now())
+            ->where('status', 'approved');
+    }
+
+    /**
+     * Check if product is currently sponsored
+     */
+    public function isCurrentlySponsored()
+    {
+        return $this->sponsor &&
+            $this->sponsor_start_time &&
+            $this->sponsor_end_time &&
+            $this->sponsor_start_time <= now() &&
+            $this->sponsor_end_time >= now();
+    }
+
+    /**
+     * Check if sponsorship has expired
+     */
+    public function hasSponsorshipExpired()
+    {
+        return $this->sponsor &&
+            $this->sponsor_end_time &&
+            $this->sponsor_end_time < now();
+    }
+
+    /**
+     * Get time remaining for sponsorship
+     */
+    public function getSponsorshipTimeRemaining()
+    {
+        if (!$this->isCurrentlySponsored()) {
+            return null;
+        }
+
+        return $this->sponsor_end_time->diffForHumans();
+    }
+
+    /**
+     * Convert product to post format for Posts page
+     */
+    public function toPostFormat()
+    {
+        return [
+            'id' => $this->id,
+            'content' => $this->description,
+            'images' => $this->images ? (is_array($this->images) ? array_map(function ($image) {
+                return str_starts_with($image, 'http') ? $image : asset('storage/' . $image);
+            }, $this->images) : []) : [],
+            'visibility' => 'public',
+            'is_published' => true,
+            'user' => [
+                'id' => $this->seller_id,
+                'name' => $this->seller->name ?? 'Unknown Seller',
+                'email' => $this->seller->email ?? '',
+                'avatar' => $this->seller->avatar ?? null,
+            ],
+            'likes_count' => $this->likes()->count(),
+            'comments_count' => 0, // Products don't have comments yet
+            'favorites_count' => 0, // Products don't have favorites yet
+            'is_liked' => false,
+            'is_favorited' => false,
+            'time_ago' => $this->created_at->diffForHumans(),
+            'image_urls' => $this->images ? (is_array($this->images) ? array_map(function ($image) {
+                return str_starts_with($image, 'http') ? $image : asset('storage/' . $image);
+            }, $this->images) : []) : [],
+            'is_sponsored' => true,
+            'sponsor_end_time' => $this->sponsor_end_time,
+            'sponsorship_time_remaining' => $this->getSponsorshipTimeRemaining(),
+        ];
     }
 }
