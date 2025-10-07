@@ -371,7 +371,10 @@ class PostController extends Controller
         $perPage = $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100, 150]) ? $perPage : 10;
 
-        $query = Product::activeSponsored()
+        $query = Product::where('sponsor', 1)
+            ->where('sponsor_start_time', '<=', now())
+            ->where('sponsor_end_time', '>', now())
+            ->where('status', 'approved')
             ->with(['seller:id,name,email,avatar', 'category:id,name'])
             ->orderBy('created_at', 'desc');
 
