@@ -14,6 +14,9 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\FollowController;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +57,9 @@ Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
+
+// Public post routes
+Route::get('/posts/sponsored', [PostController::class, 'getSponsoredPosts']);
 
 // Public user profile route
 Route::get('/users/{id}', [AuthController::class, 'show']);
@@ -136,5 +142,33 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/products', [AdminController::class, 'createProduct']);
         Route::put('/admin/products/{id}', [AdminController::class, 'updateProduct']);
         Route::delete('/admin/products/{id}', [AdminController::class, 'deleteProduct']);
+        Route::post('/admin/products/{id}/sponsor', [AdminController::class, 'toggleSponsor']);
+        Route::post('/admin/expire-sponsorships', [AdminController::class, 'expireSponsorships']);
     });
+
+    // Follow routes
+    Route::post('/follow/{id}', [FollowController::class, 'follow']);
+    Route::post('/follow/{id}/notify', [FollowController::class, 'toggleNotification']);
+    Route::get('/follow/{id}/status', [FollowController::class, 'getStatus']);
+    Route::get('/follow/{id}/followers', [FollowController::class, 'getFollowers']);
+    Route::get('/follow/{id}/following', [FollowController::class, 'getFollowing']);
+
+    // Post routes
+    Route::get('/posts', [PostController::class, 'index']);
+    Route::post('/posts', [PostController::class, 'store']);
+    Route::get('/posts/{id}', [PostController::class, 'show']);
+    Route::put('/posts/{id}', [PostController::class, 'update']);
+    Route::delete('/posts/{id}', [PostController::class, 'destroy']);
+    Route::post('/posts/{id}/like', [PostController::class, 'like']);
+    Route::post('/posts/{id}/favorite', [PostController::class, 'favorite']);
+    Route::get('/posts/{id}/comments', [PostController::class, 'getComments']);
+    Route::post('/posts/{id}/comments', [PostController::class, 'addComment']);
+
+    // Notification routes
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count', [NotificationController::class, 'getUnreadCount']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
 });
