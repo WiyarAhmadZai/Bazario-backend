@@ -58,6 +58,13 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{id}', [CategoryController::class, 'show']);
 
+// Product favorites routes (require authentication)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/products/{id}/favorite', [ProductController::class, 'addToFavorites']);
+    Route::delete('/products/{id}/favorite', [ProductController::class, 'removeFromFavorites']);
+    Route::get('/favorites', [ProductController::class, 'getFavorites']);
+});
+
 // Public post routes
 Route::get('/posts/sponsored', [PostController::class, 'getSponsoredPosts']);
 
