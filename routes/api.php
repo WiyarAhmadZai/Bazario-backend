@@ -86,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Seller routes
     Route::prefix('seller')->group(function () {
         Route::get('/products', [SellerController::class, 'getProducts']);
+        Route::get('/products/{id}', [SellerController::class, 'getProduct']);
         Route::post('/products', [SellerController::class, 'createProduct']);
         Route::put('/products/{id}', [SellerController::class, 'updateProduct']);
         Route::delete('/products/{id}', [SellerController::class, 'deleteProduct']);
