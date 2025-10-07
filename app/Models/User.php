@@ -170,4 +170,80 @@ class User extends Authenticatable
 
         return $this->verification_code;
     }
+
+    // Post relationships
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function postLikes()
+    {
+        return $this->hasMany(PostLike::class);
+    }
+
+    public function postComments()
+    {
+        return $this->hasMany(PostComment::class);
+    }
+
+    public function postFavorites()
+    {
+        return $this->hasMany(PostFavorite::class);
+    }
+
+    // Follow relationships
+    public function followers()
+    {
+        return $this->hasMany(Follower::class, 'followed_id');
+    }
+
+    public function following()
+    {
+        return $this->hasMany(Follower::class, 'follower_id');
+    }
+
+    public function followingUsers()
+    {
+        return $this->belongsToMany(User::class, 'followers', 'follower_id', 'followed_id')
+            ->withTimestamps();
+    }
+
+    public function followerUsers()
+    {
+        return $this->belongsToMany(User::class, 'followers', 'followed_id', 'follower_id')
+            ->withTimestamps();
+    }
+
+    // Notification relationships
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function notificationSettings()
+    {
+        return $this->hasMany(NotificationSetting::class);
+    }
+
+    // Helper methods
+    public function isFollowing($userId)
+    {
+        return $this->following()->where('followed_id', $userId)->exists();
+    }
+
+    public function isFollowedBy($userId)
+    {
+        return $this->followers()->where('follower_id', $userId)->exists();
+    }
+
+    public function getFollowersCountAttribute()
+    {
+        return $this->followers()->count();
+    }
+
+    public function getFollowingCountAttribute()
+    {
+        return $this->following()->count();
+    }
 }
