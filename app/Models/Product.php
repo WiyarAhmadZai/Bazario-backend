@@ -257,7 +257,10 @@ class Product extends Model
     {
         return [
             'id' => $this->id,
+            'title' => $this->title,
             'content' => $this->description,
+            'price' => $this->price,
+            'category_id' => $this->category_id,
             'images' => $this->getImageUrls(),
             'visibility' => 'public',
             'is_published' => true,
@@ -265,7 +268,7 @@ class Product extends Model
                 'id' => $this->seller_id,
                 'name' => $this->seller->name ?? 'Unknown Seller',
                 'email' => $this->seller->email ?? '',
-                'avatar' => $this->seller->avatar ? asset('storage/' . $this->seller->avatar) : null,
+                'avatar' => $this->seller->avatar ? 'http://localhost:8000/storage/' . $this->seller->avatar : null,
             ],
             'likes_count' => $this->likes()->count(),
             'comments_count' => 0, // Products don't have comments yet
