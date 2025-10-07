@@ -331,7 +331,21 @@ class AdminController extends Controller
      */
     public function products(Request $request)
     {
-        $query = Product::with('seller', 'category');
+        $query = Product::select([
+            'id',
+            'title',
+            'price',
+            'status',
+            'images',
+            'created_at',
+            'updated_at',
+            'seller_id',
+            'category_id',
+            'description'
+        ])->with([
+            'seller:id,name,email',
+            'category:id,name'
+        ]);
 
         // Filter by status if provided
         if ($request->has('status') && !empty($request->status)) {
@@ -380,7 +394,9 @@ class AdminController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        $products = $query->paginate(20);
+        $perPage = $request->get('per_page', 8); // Default to 8, but allow dynamic values
+        $perPage = in_array($perPage, [10, 25, 50, 100, 150]) ? $perPage : 8; // Validate allowed values
+        $products = $query->paginate($perPage);
 
         return response()->json($products);
     }
