@@ -22,7 +22,9 @@ class SellerController extends Controller
         $query = Product::where('seller_id', $user->id)
             ->with('category');
 
-        $products = $query->paginate(12);
+        $perPage = $request->get('per_page', 12); // Default to 12, but allow dynamic values
+        $perPage = in_array($perPage, [10, 25, 50, 100, 150]) ? $perPage : 12; // Validate allowed values
+        $products = $query->paginate($perPage);
 
         return response()->json($products);
     }
