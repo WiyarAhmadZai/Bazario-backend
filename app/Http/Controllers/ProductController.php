@@ -231,6 +231,12 @@ class ProductController extends Controller
             ->with(['category', 'seller'])
             ->paginate(12);
 
+        // Transform products to include proper image URLs
+        $favorites->getCollection()->transform(function ($product) {
+            $product->image_urls = $product->getImageUrls();
+            return $product;
+        });
+
         return response()->json($favorites);
     }
 }
