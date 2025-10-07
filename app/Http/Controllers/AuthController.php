@@ -292,7 +292,7 @@ class AuthController extends Controller
     {
         try {
             // Find user by ID and only return public information
-            $user = User::select('id', 'name', 'bio', 'created_at')
+            $user = User::select('id', 'name', 'email', 'phone', 'bio', 'avatar', 'image', 'address', 'city', 'country', 'profession', 'social_links', 'created_at')
                 ->where('id', $id)
                 ->where('is_active', true)
                 ->first();
@@ -608,7 +608,7 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             // Prepare user data for CSV export
             $userData = [
                 'User ID' => $user->id,
