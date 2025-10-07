@@ -226,6 +226,17 @@ class User extends Authenticatable
         return $this->hasMany(NotificationSetting::class);
     }
 
+    // Favorites relationship
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoriteProducts()
+    {
+        return $this->belongsToMany(Product::class, 'favorites')->withTimestamps();
+    }
+
     // Helper methods
     public function isFollowing($userId)
     {
