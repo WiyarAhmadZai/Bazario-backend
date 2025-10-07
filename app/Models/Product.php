@@ -211,6 +211,46 @@ class Product extends Model
     }
 
     /**
+     * Get image URLs for the product
+     */
+    public function getImageUrls()
+    {
+        if (!$this->images) {
+            return [];
+        }
+
+        $images = is_string($this->images) ? json_decode($this->images, true) : $this->images;
+
+        if (!is_array($images)) {
+            return [];
+        }
+
+        return array_map(function ($image) {
+            if (str_starts_with($image, 'http')) {
+                return $image;
+            }
+            // Use the correct API base URL for images
+            return 'http://localhost:8000/storage/' . $image;
+        }, $images);
+    }
+
+    /**
+     * Get likes count accessor
+     */
+    public function getLikesCountAttribute()
+    {
+        return $this->likes()->count();
+    }
+
+    /**
+     * Get favorites count accessor
+     */
+    public function getFavoritesCountAttribute()
+    {
+        return $this->favorites()->count();
+    }
+
+    /**
      * Convert product to post format for Posts page
      */
     public function toPostFormat()
@@ -218,9 +258,7 @@ class Product extends Model
         return [
             'id' => $this->id,
             'content' => $this->description,
-            'images' => $this->images ? (is_array($this->images) ? array_map(function ($image) {
-                return str_starts_with($image, 'http') ? $image : asset('storage/' . $image);
-            }, $this->images) : []) : [],
+            'images' => $this->getImageUrls(),
             'visibility' => 'public',
             'is_published' => true,
             'user' => [
@@ -235,9 +273,7 @@ class Product extends Model
             'is_liked' => false,
             'is_favorited' => false,
             'time_ago' => $this->created_at->diffForHumans(),
-            'image_urls' => $this->images ? (is_array($this->images) ? array_map(function ($image) {
-                return str_starts_with($image, 'http') ? $image : asset('storage/' . $image);
-            }, $this->images) : []) : [],
+            'image_urls' => $this->getImageUrls(),
             'is_sponsored' => true,
             'sponsor_end_time' => $this->sponsor_end_time,
             'sponsorship_time_remaining' => $this->getSponsorshipTimeRemaining(),
