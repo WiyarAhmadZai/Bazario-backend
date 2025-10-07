@@ -120,6 +120,14 @@ class Product extends Model
     }
 
     /**
+     * Get the likes for the product.
+     */
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    /**
      * Calculate the discounted price.
      */
     public function getDiscountedPriceAttribute()
