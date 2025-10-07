@@ -134,6 +134,22 @@ class Product extends Model
     }
 
     /**
+     * Get the favorites for the product.
+     */
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    /**
+     * Get the users who favorited this product.
+     */
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
+    }
+
+    /**
      * Calculate the discounted price.
      */
     public function getDiscountedPriceAttribute()
