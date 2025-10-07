@@ -347,6 +347,39 @@ class AdminController extends Controller
             });
         }
 
+        // Apply sorting
+        if ($request->has('sort_by') && !empty($request->sort_by)) {
+            switch ($request->sort_by) {
+                case 'newest':
+                    $query->orderBy('created_at', 'desc');
+                    break;
+                case 'oldest':
+                    $query->orderBy('created_at', 'asc');
+                    break;
+                case 'name':
+                    $query->orderBy('title', 'asc');
+                    break;
+                case 'name_desc':
+                    $query->orderBy('title', 'desc');
+                    break;
+                case 'price_low':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'price_high':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'status':
+                    $query->orderBy('status', 'asc');
+                    break;
+                default:
+                    $query->orderBy('created_at', 'desc');
+                    break;
+            }
+        } else {
+            // Default sorting by newest
+            $query->orderBy('created_at', 'desc');
+        }
+
         $products = $query->paginate(20);
 
         return response()->json($products);
@@ -413,7 +446,7 @@ class AdminController extends Controller
         }
 
         // Debug logging
-        \Log::info('AdminController::updateProduct called', [
+        \Illuminate\Support\Facades\Log::info('AdminController::updateProduct called', [
             'product_id' => $product->id,
             'product_title' => $product->title,
             'product_status' => $product->status,
