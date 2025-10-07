@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Product;
 use App\Models\Category;
@@ -58,7 +59,7 @@ class SellerController extends Controller
             'category_enum' => 'nullable|in:' . implode(',', CategoryEnum::values()),
             'is_featured' => 'boolean',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,bmp,svg|max:10240'
         ]);
 
         $productData = $request->only([
@@ -110,20 +111,37 @@ class SellerController extends Controller
     {
         $user = Auth::user();
 
+        Log::info('=== UPDATE PRODUCT REQUEST START ===', [
+            'product_id' => $id,
+            'user_id' => $user->id,
+            'request_method' => $request->method(),
+            'request_headers' => $request->headers->all(),
+            'request_data' => $request->all(),
+            'request_files' => $request->allFiles()
+        ]);
+
         $product = Product::where('id', $id)->where('seller_id', $user->id)->firstOrFail();
 
-        $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'sometimes|required|string',
-            'price' => 'sometimes|required|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0|max:999999.99',
-            'stock' => 'sometimes|required|integer|min:0',
-            'category_id' => 'nullable|exists:categories,id',
-            'category_enum' => 'nullable|in:' . implode(',', CategoryEnum::values()),
-            'is_featured' => 'boolean',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048'
-        ]);
+        try {
+            $request->validate([
+                'title' => 'nullable|string|max:255',
+                'description' => 'nullable|string',
+                'price' => 'nullable|numeric|min:0',
+                'discount' => 'nullable|numeric|min:0|max:999999.99',
+                'stock' => 'nullable|integer|min:0',
+                'category_id' => 'nullable|exists:categories,id',
+                'category_enum' => 'nullable|in:' . implode(',', CategoryEnum::values()),
+                'is_featured' => 'nullable|boolean',
+                'images' => 'nullable|array',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp,bmp,svg|max:10240'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json(['errors' => $e->errors()], 422);
+        }
 
         $productData = $request->only([
             'title',
@@ -134,6 +152,17 @@ class SellerController extends Controller
             'category_id',
             'category_enum',
             'is_featured'
+        ]);
+
+        // For updates, we want to allow empty values to clear fields
+        // Only remove null values, but keep empty strings
+        $productData = array_filter($productData, function ($value) {
+            return $value !== null;
+        });
+
+        Log::info('Product data after filtering', [
+            'original_product' => $product->toArray(),
+            'filtered_data' => $productData
         ]);
 
         // Generate slug from title if title is being updated
@@ -156,9 +185,28 @@ class SellerController extends Controller
                 $imagePaths[] = $path;
             }
             $productData['images'] = json_encode($imagePaths);
+        } else {
+            // If no new images provided, keep existing images
+            $productData['images'] = $product->images;
         }
 
-        $product->update($productData);
+        Log::info('About to update product in database', [
+            'product_id' => $id,
+            'data_to_update' => $productData
+        ]);
+
+        $updateResult = $product->update($productData);
+
+        Log::info('Database update result', [
+            'update_result' => $updateResult,
+            'product_after_update' => $product->fresh()->toArray()
+        ]);
+
+        Log::info('=== UPDATE PRODUCT REQUEST SUCCESS ===', [
+            'product_id' => $id,
+            'updated_data' => $productData,
+            'final_product' => $product->toArray()
+        ]);
 
         return response()->json($product);
     }

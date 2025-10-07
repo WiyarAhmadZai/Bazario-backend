@@ -403,16 +403,19 @@ class AdminController extends Controller
     public function updateProduct(Request $request, Product $product)
     {
         $request->validate([
-            'name' => 'sometimes|string|max:255',
+            'title' => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255', // Support both title and name
             'description' => 'sometimes|string',
             'price' => 'sometimes|numeric|min:0',
             'category_id' => 'sometimes|exists:categories,id',
             'stock' => 'sometimes|integer|min:0',
             'image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'images' => 'sometimes|array',
             'status' => 'sometimes|in:pending,approved,rejected',
         ]);
 
         $updateData = $request->only([
+            'title',
             'name',
             'description',
             'price',
@@ -420,6 +423,13 @@ class AdminController extends Controller
             'stock',
             'status'
         ]);
+
+        // Handle both title and name fields
+        if ($request->has('title') && !$request->has('name')) {
+            $updateData['title'] = $request->title;
+        } elseif ($request->has('name') && !$request->has('title')) {
+            $updateData['title'] = $request->name;
+        }
 
         if ($request->hasFile('image')) {
             // Delete old image if exists
@@ -431,6 +441,11 @@ class AdminController extends Controller
             $imageName = time() . '_' . $image->getClientOriginalName();
             $image->storeAs('public/products', $imageName);
             $updateData['image'] = 'storage/products/' . $imageName;
+        }
+
+        // Handle images array if provided
+        if ($request->has('images') && is_array($request->images)) {
+            $updateData['images'] = json_encode($request->images);
         }
 
         $product->update($updateData);

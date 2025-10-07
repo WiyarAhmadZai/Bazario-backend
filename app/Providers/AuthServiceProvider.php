@@ -31,17 +31,17 @@ class AuthServiceProvider extends ServiceProvider
     {
         // Define admin gate
         Gate::define('admin', function ($user) {
-            return $user->hasRole('admin');
+            return $user->isAdmin();
         });
 
         // Define seller gate
         Gate::define('seller', function ($user) {
-            return $user->hasRole('seller');
+            return $user->role === 'seller';
         });
 
         // Define buyer gate
         Gate::define('buyer', function ($user) {
-            return $user->hasRole('buyer');
+            return $user->role === 'buyer' || $user->role === 'customer';
         });
     }
 }

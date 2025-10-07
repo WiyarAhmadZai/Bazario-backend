@@ -8,11 +8,11 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\SellerController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NewsletterController;
-use App\Http\Controllers\SellerController;
 use App\Http\Controllers\LikeController;
 
 /*
@@ -34,6 +34,11 @@ Route::get('/test', function () {
 // Test API route
 Route::get('/test-api', function () {
     return response()->json(['message' => 'API is working correctly']);
+});
+
+// Test endpoint to verify backend is working
+Route::get('/test-update', function () {
+    return response()->json(['message' => 'Backend is working', 'timestamp' => now()]);
 });
 
 // Public routes
