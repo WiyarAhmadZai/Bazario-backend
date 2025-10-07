@@ -13,6 +13,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SellerController;
+use App\Http\Controllers\LikeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +55,9 @@ Route::get('/users/{id}', [AuthController::class, 'show']);
 
 // Public reviews routes
 Route::get('/reviews/{product_id}', [ReviewController::class, 'index']);
+
+// Public like count route
+Route::get('/products/{id}/like-count', [LikeController::class, 'getLikeCount']);
 
 // Development only route for getting verification codes
 Route::post('/get-verification-code', [AuthController::class, 'getVerificationCode']);
@@ -108,6 +112,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/reviews/{product_id}/reply/{review_id}', [ReviewController::class, 'storeReply']);
     Route::put('/reviews/{id}', [ReviewController::class, 'update']);
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+
+    // Like routes
+    Route::post('/products/{id}/like', [LikeController::class, 'like']);
+    Route::delete('/products/{id}/like', [LikeController::class, 'unlike']);
+    Route::get('/products/{id}/like-status', [LikeController::class, 'getLikeStatus']);
 
     // Payment routes
     Route::post('/payment/process', [PaymentController::class, 'process']);
