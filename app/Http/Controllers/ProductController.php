@@ -80,8 +80,8 @@ class ProductController extends Controller
             return response()->json($products);
         } else {
             // Paginate by default
-            $perPage = $request->get('per_page', 12); // Default to 12, but allow dynamic values
-            $perPage = in_array($perPage, [10, 25, 50, 100, 150]) ? $perPage : 12; // Validate allowed values
+            $perPage = $request->get('per_page', 10); // Default to 10, but allow dynamic values
+            $perPage = in_array($perPage, [10, 20, 30, 40, 50]) ? $perPage : 10; // Validate allowed values
             $products = $query->paginate($perPage);
             return response()->json($products);
         }
