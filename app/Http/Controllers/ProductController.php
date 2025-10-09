@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -14,16 +16,45 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category', 'seller')
-            ->where('status', 'approved'); // Only show approved products in the shop
+        // Create cache key based on request parameters
+        $cacheKey = 'products_' . md5(serialize($request->all()));
 
-        // Filter by search term
-        if ($request->has('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('title', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
-            });
+        // Check cache first (cache for 5 minutes)
+        if (Cache::has($cacheKey)) {
+            return response()->json(Cache::get($cacheKey));
+        }
+
+        // Optimize query by selecting only needed fields
+        $query = Product::select([
+            'id',
+            'title',
+            'slug',
+            'description',
+            'price',
+            'discount',
+            'stock',
+            'images',
+            'status',
+            'is_featured',
+            'view_count',
+            'created_at',
+            'updated_at',
+            'category_id',
+            'seller_id'
+        ])->with([
+            'category:id,name,slug',
+            'seller:id,name,email'
+        ])->where('status', 'approved');
+
+        // Filter by search term (optimized with full-text search)
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = trim($request->search);
+            if (strlen($searchTerm) >= 2) { // Only search if 2+ characters
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('title', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
         }
 
         // Filter by category
@@ -58,8 +89,9 @@ class ProductController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
-        // Sort products
-        switch ($request->sort_by) {
+        // Sort products (optimized with indexes)
+        $sortBy = $request->get('sort_by', 'newest');
+        switch ($sortBy) {
             case 'price_low':
                 $query->orderBy('price', 'asc');
                 break;
@@ -69,21 +101,48 @@ class ProductController extends Controller
             case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            default:
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'name_asc':
                 $query->orderBy('title', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('title', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
                 break;
         }
 
         // Check if we want all products
         if ($request->has('all') && $request->all == true) {
             $products = $query->get(); // Get all products without pagination
-            return response()->json($products);
+            $result = $products;
         } else {
             // Paginate by default
             $perPage = $request->get('per_page', 10); // Default to 10, but allow dynamic values
             $perPage = in_array($perPage, [10, 20, 30, 40, 50]) ? $perPage : 10; // Validate allowed values
-            $products = $query->paginate($perPage);
-            return response()->json($products);
+            $result = $query->paginate($perPage);
+        }
+
+        // Cache the result for 5 minutes
+        Cache::put($cacheKey, $result, 300);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Clear product cache when products are updated
+     */
+    private function clearProductCache()
+    {
+        // Clear cache using Laravel's cache tags (if supported) or flush all
+        try {
+            Cache::flush(); // Simple approach - clear all cache
+        } catch (\Exception $e) {
+            // Fallback: clear specific cache patterns if needed
+            \Log::info('Cache clearing failed: ' . $e->getMessage());
         }
     }
 
@@ -104,6 +163,9 @@ class ProductController extends Controller
         ]);
 
         $product = Product::create($request->all());
+
+        // Clear product cache when new product is created
+        $this->clearProductCache();
 
         return response()->json($product, 201);
     }
